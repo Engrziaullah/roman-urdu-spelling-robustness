@@ -1,0 +1,7 @@
+Choose one answer from {letters}.
+
+Question:
+{question}
+
+Options:
+{options}

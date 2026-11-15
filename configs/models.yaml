@@ -1,0 +1,11 @@
+# Fill these fields from each provider's current official free-tier page.
+# Do not run real evaluations while required fields remain TODO.
+helper: TODO
+evaluated_models:
+  - slug: TODO
+    provider: TODO
+    model_string: TODO
+    api_key_env: TODO
+    requests_per_minute: TODO
+    requests_per_day: TODO
+    checked_on: TODO
