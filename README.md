@@ -59,7 +59,8 @@ roman-urdu-spelling-robustnes/
 │   ├── PLAN.md            # 3-phase, 4-day plan, gates, task split
 │   ├── CONTRACTS.md       # data and result schemas (the interface between A, B, C)
 │   ├── RULES.md           # spelling operation rules (Phase 1)
-│   └── LITERATURE.md      # verified literature table (Phase 1)
+│   ├── LITERATURE.md      # verified literature table (Phase 1)
+│   └── prompts/           # Antigravity session and Day 1 task prompts
 ├── configs/               # models, prompt template, seed
 ├── data/
 │   ├── raw/               # UrduMMLU download (not committed)
