@@ -1,5 +1,5 @@
 import pandas as pd
-from accuracy import accuracy_table
+from src.analysis.accuracy import accuracy_table
 
 
 def make_df(correct, valid):

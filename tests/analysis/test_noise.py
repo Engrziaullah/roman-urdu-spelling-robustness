@@ -1,5 +1,5 @@
 import pandas as pd
-from noise import noise_table
+from src.analysis.noise import noise_table
 
 
 def build(data):

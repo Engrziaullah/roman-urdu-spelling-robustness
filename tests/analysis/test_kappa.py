@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from kappa import counts_from_wide, fleiss_kappa, kappa_with_ci
+from src.analysis.kappa import counts_from_wide, fleiss_kappa, kappa_with_ci
 
 
 def test_hand_computed():

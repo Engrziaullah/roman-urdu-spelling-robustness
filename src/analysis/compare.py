@@ -3,7 +3,7 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 
-from flips import flips_table, VARIANTS
+from .flips import flips_table, VARIANTS
 
 
 def noise_per_item(df, conditions=VARIANTS):

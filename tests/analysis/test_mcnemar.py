@@ -1,5 +1,5 @@
 import pandas as pd
-from mcnemar import mcnemar_table
+from src.analysis.mcnemar import mcnemar_table
 
 
 def build():

@@ -1,5 +1,5 @@
 import pandas as pd
-from flips import flips_table, flip_rates_table
+from src.analysis.flips import flips_table, flip_rates_table
 
 
 def build(rows):

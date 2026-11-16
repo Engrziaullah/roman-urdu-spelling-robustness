@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from mixed import mixed_table
+from src.analysis.mixed import mixed_table
 
 
 def build(effects, n_items=300, seed=0):

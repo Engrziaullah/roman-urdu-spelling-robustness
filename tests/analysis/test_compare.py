@@ -1,5 +1,5 @@
 import pandas as pd
-from compare import compare_to_noise
+from src.analysis.compare import compare_to_noise
 
 
 def build(data):
