@@ -25,7 +25,7 @@ Column "Reader" = who reads it first (swap freely). "Opened" and "Verified" are 
 | ID | Priority | Paper as we know it (unverified) | What our notes say (from snippets/tool summaries) | Why it matters / what to check in the full text | Reader | Opened | Verified |
 |---|---|---|---|---|---|---|---|
 | L01 | P1 | UrduMMLU. Tabassum, Ahmad, Iqbal, Aijaz, Ahsan, Nakov. EMNLP 2026. arXiv:2606.07167. HF: `MBZUAI/UrduMMLU` | Large benchmark of Urdu exam-style MCQs (about 26k items, 26 subjects, 5 domains); Nastaliq only | **Our source data.** Check: schema, number of options, domain and subject fields, answer format, license on the dataset card (CC BY 4.0?), whether any Roman Urdu version exists | Sudais | ☐ | ☐ |
-| L02 | P1 | Belebele. Bandarkar et al. ACL 2024 | Parallel reading-comprehension MCQs in 122 language variants; **reported to include Urdu in Nastaliq (urd_Arab) and Latin script (urd_Latn)** | **Biggest novelty threat.** Check: does `urd_Latn` exist, how was it produced (transliteration tool? one romanization?), what do the results say about Urdu script vs Latin, any spelling variation. If it only has one romanization and reading comprehension, our spelling manipulation is still open | Younas | ☐ | ☐ |
+| L02 | P1 | Belebele. Bandarkar et al. ACL 2024 | Parallel reading-comprehension MCQs in 122 language variants; **reported to include Urdu in Nastaliq (urd_Arab) and Latin script (urd_Latn)** | **Biggest novelty threat.** Check: does `urd_Latn` exist, how was it produced (transliteration tool? one romanization?), what do the results say about Urdu script vs Latin, any spelling variation. If it only has one romanization and reading comprehension, our spelling manipulation is still open | Younas | ☑ | ☑ |
 | L03 | P1 | U-MIRAGE. Faheem et al. AbjadNLP 2026 | Urdu and Roman Urdu medical QA benchmark with chain-of-thought; Roman Urdu reported better than Nastaliq | Closest design (script comparison on QA). Check: how Roman Urdu was produced, how many forms, models, the direction and size of the effect, domain | Zia | ☐ | ☐ |
 | L04 | P1 | Script Gap. Khullar et al. arXiv 2025 (arXiv:2512.10780) | Native vs romanized scripts for LLM triage in Indian languages; romanized inputs performed worse; models often grasp intent but still misclassify | Mechanism and effect-size reference. Check: languages, task, whether Urdu is included, how romanization was produced, exact gap and flip-related results. Preprint? | Sudais | ☐ | ☐ |
 | L05 | P1 | Evaluating LLMs on Urdu Idioms. Khan and Akter. arXiv 2510.17460; Findings of EMNLP 2026 | Native Urdu vs Roman Urdu idiom translation; native script reported better | Script effect with opposite sign to U-MIRAGE. Check: venue status, number of Roman Urdu forms, metrics | Younas | ☐ | ☐ |
@@ -112,3 +112,27 @@ Keep one BibTeX entry per **verified** paper in `paper/references.bib` (key form
 - [ ] Section 3.2 searches repeated; dates and counts recorded.
 - [ ] Any new closest-prior-work found late is added here and the novelty wording is changed (claims change, data does not).
 - [ ] The related-work section uses **only** verified entries.
+
+## 7. Verification notes (one block per verified paper)
+
+### L03 U-MIRAGE (Faheem et al., AbjadNLP 2026, pp. 453-460)
+- Opened full text: 2026-11-16 (Younas). Venue: workshop paper (ACL Anthology).
+- Dataset: 7,663 English medical MCQs (MIRAGE) translated into Urdu script and one Roman Urdu form (Section 3).
+- Roman Urdu: one form only; English medical terms are kept on purpose (code-mixing, Section 3.1). Who translated (human or model) is not stated; validation is back-translation ROUGE-L 0.75 on 500 questions (Table 2).
+- Models: 6 configurations (GPT-5-Nano, Gemini 2.0 Flash Lite, quantized Qwen 2.5 0.5B, Gemma 2 2B, LLaMA 3.2 1B in two precisions), zero-shot and chain-of-thought, accuracy only (Table 4).
+- Direction of effect (zero-shot, Table 4): all configurations are lower in Urdu variants than English for GPT-5-Nano and Gemma, but not every row (quantized LLaMA 1B Roman Urdu is above English). Roman Urdu is 0.7 to 1.6 points above Urdu script for five configurations; Gemini is the exception (Urdu script 2.26 points higher).
+- Text inconsistencies: abstract says 6-10% drop, results say 6-11%; "three proprietary models" but only two are named.
+- Our difference: medical only, one Roman Urdu form with English insertions, no spelling variants, no per-item flips.
+- Allowed wording: "reports that Roman Urdu was generally slightly ahead of Urdu script for most configurations". Not allowed: "Roman Urdu consistently better", or any number from the abstract.
+
+### L02 Belebele (Bandarkar et al., ACL 2024, pp. 749-775, DOI 10.18653/v1/2024.acl-long.44)
+- Opened full text: 2026-11-16 (Younas). Venue: peer-reviewed (ACL 2024 Long Papers).
+- Task: multiple-choice reading comprehension, 900 questions over 488 FLORES-200 passages, 4 options, answerable from the passage alone (Sections 1, 3.1, Table 1). Not exam-style knowledge items.
+- Urdu: both urd_Arab and urd_Latn exist (Appendix A.1, Table 4).
+- How urd_Latn was made: annotators transliterated the native-script passages into Latin script with IndicXlit support (Section 3.3); one romanized version per passage.
+- Script result: all models except Falcon are stronger in native script (Section 5, Impact of Script; Appendix A.7.3, Table 8). Urdu: GPT-3.5-Turbo 48.3 vs 40.3, LLaMA 2 70B 43.2 vs 38.0, InfoXLM 63.8 vs 42.6; Falcon is the exception (31.7 vs 34.2).
+- Models are from 2023 (GPT-3.5-Turbo, LLaMA 1/2, Falcon, XLM-R family), not current models.
+- Spelling variation: not found in the paper (Ctrl+F for "spelling": no hits; "variant" appears only as "language variants" and "romanized variant"). Checked 2026-11-16, Younas.
+- Our difference: single romanization of reading-comprehension passages; no controlled spelling styles, no per-item answer flips, no exam-style knowledge items.
+- Allowed wording: "Belebele includes a romanized Urdu split produced by transliteration, with one romanized version per item; to our knowledge it does not vary spelling styles."
+- Not allowed: "Belebele shows Roman Urdu is worse" without naming the task and the models, or any claim about current models.
