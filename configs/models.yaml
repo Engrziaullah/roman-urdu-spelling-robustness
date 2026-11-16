@@ -1,0 +1,12 @@
+# Fill these fields from each provider's current official free-tier page.
+# Do not run real evaluations while required fields remain TODO.
+# Proposed only: Groq with llama-3.1-8b-instant; the model still needs team approval.
+helper: TODO
+evaluated_models:
+  - slug: TODO
+    provider: groq
+    model_string: TODO
+    api_key_env: GROQ_API_KEY
+    requests_per_minute: TODO
+    requests_per_day: TODO
+    checked_on: TODO

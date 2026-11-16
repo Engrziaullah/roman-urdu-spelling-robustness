@@ -1,0 +1,8 @@
+TODO: Team must agree on the exact shared English evaluation prompt at Gate G0.
+Use only the supplied valid answer letters: {letters}
+
+Question:
+{question}
+
+Options:
+{options}

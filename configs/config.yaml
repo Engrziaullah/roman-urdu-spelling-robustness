@@ -1,0 +1,12 @@
+# Team-owned values must be agreed at Gate G0 before a real run.
+seed: TODO
+max_output_tokens: TODO
+temperature: 0
+request_timeout_s: 60
+max_retries: 3
+max_consecutive_failures: 5
+backoff_initial_s: 1
+paths:
+  results_raw: results/raw
+  run_log: results/RUN_LOG.md
+  prompt_template: configs/prompt.txt
