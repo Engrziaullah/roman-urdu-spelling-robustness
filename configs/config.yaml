@@ -1,11 +1,25 @@
-# Team-owned values must be agreed at Gate G0 before a real run.
-seed: TODO
-max_output_tokens: TODO
+# configs/config.yaml (owner: Role B, Zia Ullah)
+# Values here must be agreed at Gate G0. The loader treats "TODO" as an error, so real runs
+# cannot start with an unresolved value.
+
+# Seed: the sampling step (data/interim/sampling_report.md) used seed 42. Keep ONE seed for the whole project.
+seed: 42
+
+# PROPOSED, not yet tested: the model should reply with a single option letter, so a small limit is enough.
+# Confirm during the smoke test: some models count internal "thinking" tokens inside this limit, and a
+# limit that is too small can cut the answer off (the parser would then mark it invalid).
+# If the smoke test shows truncated or empty replies, raise this value and record the change.
+max_output_tokens: 16
+
+# Fixed by the study design (docs/RULES.md and the proposal): zero-shot, temperature 0. The loader requires 0.
 temperature: 0
+
+# Runner behaviour (defaults proposed by the existing code; change only with a recorded reason).
 request_timeout_s: 60
 max_retries: 3
 max_consecutive_failures: 5
 backoff_initial_s: 1
+
 paths:
   results_raw: results/raw
   run_log: results/RUN_LOG.md
