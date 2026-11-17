@@ -1,8 +1,17 @@
 import warnings
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
-from src.analysis.kappa import counts_from_wide, fleiss_kappa, kappa_with_ci, cohen_kappa, evaluate_kappa_sheet
+from src.analysis.kappa import (
+    cohen_kappa,
+    counts_from_wide,
+    evaluate_kappa_sheet,
+    fleiss_kappa,
+    kappa_with_ci,
+    main,
+)
 
 
 def test_hand_computed():
@@ -90,3 +99,52 @@ def test_evaluate_kappa_sheet_missing_columns():
     })
     with pytest.raises(ValueError, match="missing required columns"):
         evaluate_kappa_sheet(df)
+
+
+def test_kappa_cli_unanimous_ratings_and_input_unchanged(tmp_path, capsys):
+    sheet = tmp_path / "kappa.csv"
+    sheet.write_text(
+        "item_id,condition,rater_1,rater_2\nitem-1,RU-P,y,y\nitem-2,RU-R,y,y\n",
+        encoding="utf-8",
+    )
+    original = sheet.read_bytes()
+
+    main([str(sheet)])
+
+    output = capsys.readouterr().out
+    assert "Items evaluated: 2" in output
+    assert "Raw agreement:   1.0000" in output
+    assert "Cohen's kappa:   undefined" in output
+    assert "Status: UNDEFINED" in output
+    assert sheet.read_bytes() == original
+
+
+def test_kappa_cli_hand_computed_example(tmp_path, capsys):
+    sheet = tmp_path / "kappa.csv"
+    sheet.write_text(
+        "item_id,condition,rater_1,rater_2\n"
+        "item-1,RU-P,y,y\n"
+        "item-2,RU-P,y,n\n"
+        "item-3,RU-P,n,y\n"
+        "item-4,RU-P,n,n\n",
+        encoding="utf-8",
+    )
+
+    with pytest.warns(UserWarning, match="below the target threshold"):
+        main([str(sheet)])
+
+    output = capsys.readouterr().out
+    assert "Items evaluated: 4" in output
+    assert "Raw agreement:   0.5000" in output
+    assert "Cohen's kappa:   0.0000" in output
+    assert "Status: WARNING" in output
+
+
+def test_kappa_cli_accepts_template_path(capsys):
+    template = Path("annotations/kappa_template.csv")
+
+    main([str(template)])
+
+    output = capsys.readouterr().out
+    assert "Items evaluated: 4" in output
+    assert "Cohen's kappa:   undefined" in output
