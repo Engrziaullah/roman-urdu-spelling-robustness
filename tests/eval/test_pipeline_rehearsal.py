@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -110,7 +111,13 @@ def test_pipeline_rehearsal_guards_five_options_resume_and_checker(
         run_pipeline(**run_arguments)
 
     frozen_marker.parent.mkdir(parents=True)
-    frozen_marker.write_text("Temporary rehearsal marker.\n", encoding="utf-8")
+    items_hash = hashlib.sha256(
+        items_path.read_bytes().replace(b"\r\n", b"\n")
+    ).hexdigest()
+    frozen_marker.write_text(
+        f"Temporary rehearsal marker.\nitems_v1.jsonl sha256: {items_hash}\n",
+        encoding="utf-8",
+    )
     first = run_pipeline(**run_arguments)
     second = run_pipeline(**run_arguments)
     output_file = output_dir / "fixture" / f"{run_date}_nu_r1.jsonl"
@@ -174,3 +181,46 @@ def test_pipeline_rehearsal_guards_five_options_resume_and_checker(
     duplicate_report = check_results(output_dir, items_path, models_path, config_path)
     assert duplicate_report["ok"] is False
     assert duplicate_report["duplicate_keys"]
+
+    retry_rows = [
+        json.loads(line)
+        for line in output_file.read_text(encoding="utf-8").splitlines()
+    ]
+    failed_attempt = dict(retry_rows[0])
+    failed_attempt.update(
+        error="temporary provider failure",
+        parsed_answer=None,
+        valid=False,
+        raw_output="",
+    )
+    retry_rows[0] = failed_attempt
+    output_file.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in retry_rows),
+        encoding="utf-8",
+    )
+    retry_report = check_results(output_dir, items_path, models_path, config_path)
+
+    assert retry_report["ok"] is True
+    assert retry_report["retry_history_duplicates"]
+    assert retry_report["models"]["fixture"]["conditions"]["NU"]["error_rows"] == 1
+    assert (
+        retry_report["models"]["fixture"]["conditions"]["NU"]["unresolved_error_rows"]
+        == 0
+    )
+
+    retry_rows[-1].update(
+        error="latest attempt failed",
+        parsed_answer=None,
+        valid=False,
+        raw_output="",
+    )
+    output_file.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in retry_rows),
+        encoding="utf-8",
+    )
+    failed_latest_report = check_results(output_dir, items_path, models_path, config_path)
+    nu_report = failed_latest_report["models"]["fixture"]["conditions"]["NU"]
+
+    assert failed_latest_report["ok"] is False
+    assert nu_report["unresolved_error_rows"] == 1
+    assert ["mock-item-001", "NU", 1] in nu_report["missing"]

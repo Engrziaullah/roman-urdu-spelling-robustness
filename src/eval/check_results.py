@@ -83,6 +83,10 @@ def check_results(
     problems: list[str] = []
     rows_by_group: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     key_counts: Counter[tuple[str, str, str, int]] = Counter()
+    rows_by_key: dict[
+        tuple[str, str, str, int],
+        list[tuple[tuple[int, int, str], dict[str, Any]]],
+    ] = defaultdict(list)
     model_strings: dict[str, set[str]] = defaultdict(set)
     observed_dates: dict[tuple[str, str], list[str]] = defaultdict(list)
 
@@ -92,6 +96,7 @@ def check_results(
         result_files = []
     for result_file in result_files:
         try:
+            file_order = result_file.stat().st_mtime_ns
             content = result_file.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as exc:
             problems.append(f"Cannot read result file {result_file}: {exc}")
@@ -164,6 +169,9 @@ def check_results(
             rows_by_group[(model_slug, condition)].append(row)
             key = (model_slug, item_id, condition, repeat)
             key_counts[key] += 1
+            rows_by_key[key].append(
+                ((file_order, line_number, str(result_file)), row)
+            )
             if isinstance(row.get("model_string"), str):
                 model_strings[model_slug].add(row["model_string"])
             date_text = row.get("date_utc")
@@ -202,8 +210,22 @@ def check_results(
                 problems.append(f"error must be text or null at {location}.")
 
     duplicates = sorted(key for key, count in key_counts.items() if count > 1)
-    for key in duplicates:
-        problems.append(f"Duplicate result key: {key!r}.")
+    latest_rows: dict[tuple[str, str, str, int], dict[str, Any]] = {}
+    retry_history_duplicates: list[tuple[str, str, str, int]] = []
+    for key, attempts in rows_by_key.items():
+        attempts.sort(key=lambda attempt: attempt[0])
+        latest_rows[key] = attempts[-1][1]
+        if len(attempts) > 1:
+            earlier_rows = [row for _order, row in attempts[:-1]]
+            latest = attempts[-1][1]
+            is_retry_history = (
+                all(row.get("error") is not None for row in earlier_rows)
+                and latest.get("error") is None
+            )
+            if is_retry_history:
+                retry_history_duplicates.append(key)
+            else:
+                problems.append(f"Duplicate result key: {key!r}.")
 
     expected_keys: set[tuple[str, str, str, int]] = set()
     for model_slug in model_slugs:
@@ -213,10 +235,15 @@ def check_results(
                 (model_slug, item_id, condition, repeat)
                 for repeat in range(1, repeat_count + 1)
             )
-    existing_keys = set(key_counts)
-    missing_keys = sorted(expected_keys - existing_keys)
+    completed_keys = {
+        key
+        for key, row in latest_rows.items()
+        if "error" in row and row["error"] is None
+    }
+    missing_keys = sorted(expected_keys - completed_keys)
     if missing_keys:
         problems.append(f"{len(missing_keys)} expected result combination(s) are missing.")
+    existing_keys = set(key_counts)
     unexpected_keys = sorted(existing_keys - expected_keys)
     if unexpected_keys:
         problems.append(f"{len(unexpected_keys)} unexpected result combination(s) were found.")
@@ -233,8 +260,21 @@ def check_results(
         for condition in conditions:
             group = rows_by_group.get((model_slug, condition), [])
             valid_rows = sum(row.get("valid") is True for row in group)
-            invalid_rate = (len(group) - valid_rows) / len(group) if group else 0.0
+            latest_group = [
+                row
+                for key, row in latest_rows.items()
+                if key[0] == model_slug and key[2] == condition
+            ]
+            effective_valid_rows = sum(row.get("valid") is True for row in latest_group)
+            invalid_rate = (
+                (len(latest_group) - effective_valid_rows) / len(latest_group)
+                if latest_group
+                else 0.0
+            )
             error_rows = sum(row.get("error") is not None for row in group)
+            unresolved_error_rows = sum(
+                row.get("error") is not None for row in latest_group
+            )
             missing = [
                 key for key in missing_keys
                 if key[0] == model_slug and key[2] == condition
@@ -243,14 +283,24 @@ def check_results(
                 key for key in duplicates
                 if key[0] == model_slug and key[2] == condition
             ]
+            retry_history_group = [
+                key for key in retry_history_duplicates
+                if key[0] == model_slug and key[2] == condition
+            ]
             dates = observed_dates.get((model_slug, condition), [])
             condition_reports[condition] = {
                 "rows": len(group),
                 "valid_rows": valid_rows,
                 "invalid_rate": invalid_rate,
                 "error_rows": error_rows,
+                "effective_rows": len(latest_group),
+                "effective_valid_rows": effective_valid_rows,
+                "unresolved_error_rows": unresolved_error_rows,
                 "missing": [list(key[1:]) for key in missing],
                 "duplicate_keys": [list(key[1:]) for key in duplicate_group],
+                "retry_history_duplicates": [
+                    list(key[1:]) for key in retry_history_group
+                ],
                 "date_range": [min(dates), max(dates)] if dates else None,
             }
             if invalid_rate > invalid_rate_threshold:
@@ -258,8 +308,11 @@ def check_results(
                     f"Invalid rate for {model_slug}/{condition} is "
                     f"{invalid_rate:.4f}, above {invalid_rate_threshold:.4f}."
                 )
-            if error_rows:
-                problems.append(f"{error_rows} error row(s) for {model_slug}/{condition}.")
+            if unresolved_error_rows:
+                problems.append(
+                    f"{unresolved_error_rows} unresolved error row(s) for "
+                    f"{model_slug}/{condition}."
+                )
         model_reports[model_slug] = {
             "model_strings": sorted(model_strings.get(model_slug, set())),
             "multiple_model_strings": len(model_strings.get(model_slug, set())) > 1,
@@ -269,6 +322,9 @@ def check_results(
     return {
         "models": model_reports,
         "duplicate_keys": [list(key) for key in duplicates],
+        "retry_history_duplicates": [
+            list(key) for key in sorted(retry_history_duplicates)
+        ],
         "problems": problems,
         "ok": not problems,
     }

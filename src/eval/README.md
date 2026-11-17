@@ -101,9 +101,12 @@ After collection, inspect Gate G3 results without modifying any result files:
 python -m src.eval.check_results --results-dir results/raw --items data/processed/items_v1.jsonl
 ```
 
-The checker exits nonzero for schema/answer problems, missing or duplicate
-combinations, request errors, multiple model strings, or an invalid rate above
-5 percent.
+The checker reports all attempt rows and duplicate keys. A duplicate is treated
+as retry history only when each earlier row for that key has an error and the
+latest row succeeds; it remains visible in the report but is not a Gate G3
+failure. Missing combinations and invalid rates use the latest row per key.
+Unresolved errors, other duplicate keys, schema/answer problems, multiple model
+strings, and invalid rates above 5 percent make the checker exit nonzero.
 
 ## Answer parsing and provider references
 
