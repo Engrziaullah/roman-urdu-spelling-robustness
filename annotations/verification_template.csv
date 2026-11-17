@@ -1,0 +1,4 @@
+item_id,condition,rater,meaning_preserved,words_unchanged,protected_tokens_ok,convention_followed,corrected_text,note
+umm-0001,RU-P,rater_name,y,y,y,y,,sample valid row
+umm-0001,RU-R,rater_name,y,y,y,y,,
+umm-0001,RU-X,rater_name,y,y,y,y,,
