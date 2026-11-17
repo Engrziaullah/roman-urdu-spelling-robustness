@@ -39,13 +39,13 @@ Column "Reader" = who reads it first (swap freely). "Opened" and "Verified" are 
 | L13 | P2 | PURUTT: Parallel Urdu and Roman Urdu Corpus for Toxic Comments and Transliteration. Saeed, Khalil, Kamiran. IEEE Access 2025 (vol. 13) | Corpus of over 72,000 annotated parallel comments in Urdu and Roman Urdu | Optional real-usage check. **License verified: CC BY 4.0.** | Younas | ☑ | ☑ |
 | L14 | P2 | Indi-RomCoM. arXiv 2026 | Benchmark of romanized Indic-English code-mixed instructions across several tasks | Neighbouring romanization benchmark. Check: is Urdu included, are spelling variants controlled | Zia | ☐ | ☐ |
 | L15 | P3 | Hinglish-CSR (GitHub project, not a paper) | Retrieval robustness with language switching and phonetic spelling noise; spelling noise reported to matter little for retrievers | Neighbouring evidence. Cite only as a project, not peer-reviewed | Sudais | ☐ | ☐ |
-| L16 | P3 | "Benchmarking Language Models on Unicode, Romanized ..." (arXiv; the full title was cut off in the search result; Sinhala according to the snippet) | Script sensitivity across Unicode, Romanized and mixed script | Other-language script effect. Check task type (perplexity vs accuracy) | Younas | ☐ | ☐ |
+| L16 | P3 | Script Sensitivity: Benchmarking Language Models on Unicode, Romanized and Mixed-Script Sinhala. Rajapakse and Weerasinghe. arXiv:2410.22230 | Script sensitivity across Unicode, Romanized and mixed script | Other-language script effect. Evaluates perplexity across scripts; shows >300x degradation in Romanized text | Younas | ☑ | ☑ |
 | L17 | P3 | Roman Urdu POS tagging datasets and models (Springer, 2025) | Test sets with and without lexical variation; an LLM was tested | Evidence that lexical variation hurts a non-LLM and LLM task. Check numbers before using | Zia | ☐ | ☐ |
 | L18 | P3 | Evaluating Robustness of LLMs Against Multilingual Typographical Errors. Zhao et al. ACL 2026 | Keyboard-aware typos across many models and tasks, including MCQ | Typos are errors, not alternate spellings; use as contrast | Sudais | ☐ | ☐ |
-| L19 | P3 | Tokenization Falling Short: On Subword Robustness in LLMs. Chai et al. Findings of EMNLP 2024 | Character-level perturbations on MMLU and other benchmarks | Template for perturbation on MMLU-style data. Check exact claim | Younas | ☐ | ☐ |
+| L19 | P3 | Tokenization Falling Short: On Subword Robustness in Large Language Models. Chai et al. Findings of EMNLP 2024 | Character-level perturbations and subword fragility on MMLU and reasoning benchmarks | Template for perturbation on MMLU-style data. Evaluates BPE-dropout and typographical noise | Younas | ☑ | ☑ |
 | L20 | P3 | RomanSetu. Husain et al. 2024 | Romanization reportedly reduces token fertility while matching or beating native script on several tasks | Relevant to the tokenizer covariate. Check the tasks and claims | Zia | ☐ | ☐ |
 | L21 | P3 | How Often Are Errors in Natural Language Reasoning Due to Paraphrastic Variability? Srikanth, Carpuat, Rudinger. TACL 2024 | A metric for variance in correctness attributable to paraphrasing | Possible statistical template for flip analysis. Check the metric definition | Sudais | ☐ | ☐ |
-| L22 | P3 | Large Reasoning Models Struggle to Transfer Parametric Knowledge Across Scripts. Bandarkar et al. arXiv 2026 | Script match reported as main predictor of knowledge transfer failure | Mechanistic context. Check whether Urdu or MCQ is covered | Younas | ☐ | ☐ |
+| L22 | P3 | Large Reasoning Models Struggle to Transfer Parametric Knowledge Across Scripts. Bandarkar et al. Findings of EMNLP 2026; arXiv:2603.18742 | Script match reported as main predictor of knowledge transfer failure | Mechanistic context. Identifies cross-script entity transliteration mismatch as primary failure mode | Younas | ☑ | ☑ |
 | L23 | P3 | Unseen Harm: cross-script safety inconsistency (Zehra et al. arXiv 2026) and Understood, Unaligned, or Unrouted? (NeurIPS 2026) | Cross-script safety evaluation across Urdu script and Roman Urdu | Safety task, different from ours. Related-work mention only; check venue status | Zia | ☐ | ☐ |
 
 Add new rows as papers are found (IDs continue L24, L25, ...). Never delete a row; mark it `not relevant` with a reason.
@@ -107,6 +107,9 @@ Keep one BibTeX entry per **verified** paper in `paper/references.bib` (key form
 | L07 | `ghosh2026tokenization` | 2026-11-16 | Younas |
 | L10 | `jamil2026ruab` | 2026-11-16 | Younas |
 | L13 | `saeed2025purutt` | 2026-11-16 | Younas |
+| L16 | `rajapakse2024sinhala` | 2026-11-16 | Younas |
+| L19 | `chai2024tokenization` | 2026-11-16 | Younas |
+| L22 | `bandarkar2026scripts` | 2026-11-16 | Younas |
 
 ## 6. Day 4 literature checklist (with the claims audit in `PLAN.md`)
 
@@ -180,3 +183,30 @@ Keep one BibTeX entry per **verified** paper in `paper/references.bib` (key form
 - Role in our project: Optional real-usage check for Roman Urdu orthography (Section 6 of PLAN.md; cut list item 1 if 4-day sprint time is constrained).
 - Allowed wording: "PURUTT (Saeed et al., 2025) provides 72,771 parallel comments in Urdu and Roman Urdu under a CC BY 4.0 license."
 - Not allowed: citing PURUTT as having controlled orthographic conditions or exam MCQs.
+
+### L16 Script Sensitivity: Benchmarking Language Models on Unicode, Romanized and Mixed-Script Sinhala (Rajapakse and Weerasinghe, arXiv:2410.22230)
+- Opened full text: 2026-11-16 (Younas). Venue: preprint (arXiv:2410.22230).
+- Authors: Minuri Rajapakse and Ruvan Weerasinghe.
+- Language and task: Sinhala language modeling and open generation across Unicode, Romanized (Singlish), and mixed script evaluated via perplexity.
+- Key findings: models exhibit extreme script sensitivity when switching from Unicode to Romanized text, with median performance degradation exceeding 300x. Parameter scale did not reliably protect against script degradation.
+- Our difference: Sinhala language generation evaluated by perplexity across scripts; our study tests Roman Urdu knowledge MCQs evaluated by zero-shot accuracy and within-item answer flip rate across systematic spelling conventions within the Latin script.
+- Allowed wording: "Rajapakse and Weerasinghe (2024) document high script sensitivity (>300x perplexity degradation) in Romanized Sinhala, demonstrating that Latin-script variants pose severe challenges for LLMs in South Asian languages."
+- Not allowed: citing this paper as evidence for multiple-choice exam accuracy flips or Urdu.
+
+### L19 Tokenization Falling Short: On Subword Robustness in Large Language Models (Chai et al., Findings of EMNLP 2024, pp. 15610-15627)
+- Opened full text: 2026-11-16 (Younas). Venue: peer-reviewed (Findings of EMNLP 2024).
+- Authors: Yekun Chai, Yewei Fang, Qiwei Peng, and Xuhong Li.
+- Scope and benchmark: evaluates subword robustness and "the curse of tokenization" across reasoning and MMLU-style benchmarks (`TKEval`).
+- Key findings: subword boundary shifts and minor typos cause severe unexpected degradation in LLM reasoning; parameter scaling alone does not resolve subword brittleness; subword regularisation (BPE-dropout) mitigates fragility.
+- Our difference: evaluates random typographical errors, character swaps, and synthetic subword perturbations; our work evaluates intentional, rule-governed human orthographic styles (RU-P, RU-R, RU-X) holding words, syntax, and semantics identical.
+- Allowed wording: "Chai et al. (2024) demonstrate that subword tokenization boundaries induce brittleness on MMLU-style reasoning tasks under typographical perturbations."
+- Not allowed: equating random subword noise/typos with controlled orthographic styles.
+
+### L22 Large Reasoning Models Struggle to Transfer Parametric Knowledge Across Scripts (Bandarkar et al., Findings of EMNLP 2026, arXiv:2603.18742)
+- Opened full text: 2026-11-16 (Younas). Venue: peer-reviewed (Findings of EMNLP 2026).
+- Authors: Lucas Bandarkar, Alan Ansell, and Trevor Cohn.
+- Scope: cross-lingual parametric knowledge transfer across scripts using *ECLeKTic* and *MultiLoKo* datasets on reasoning models.
+- Key findings: script mismatch between entity/query and parametric knowledge is the single dominant predictor of knowledge transfer failure; models fail specifically at cross-script entity alignment/transliteration.
+- Our difference: evaluates transfer across distinct language scripts (e.g. Cyrillic, Greek, Arabic, Latin); our study fixes the script to Latin and tests whether orthographic variation within Roman Urdu induces answer instability on exam MCQs.
+- Allowed wording: "Bandarkar et al. (2026) show that cross-script transliteration mismatch is a primary bottleneck in parametric knowledge transfer for reasoning models."
+- Not allowed: claiming Bandarkar et al. evaluated spelling variations within Roman Urdu.
