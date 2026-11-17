@@ -2,6 +2,20 @@
 
 ## 3. Literature search log
 
+### 3.1 Search results recorded (November 2026)
+
+| Date | Database | Exact query | Filters | Total hits | Relevant hits | Notes |
+|---|---|---|---|---|---|---|
+| Nov 2026 | Google Scholar | `"romanized Urdu" "multiple choice"` | none noted | 4 | 0 | Results were unrelated (gender identification, TESOL, loan officers, dissertation) |
+| Nov 2026 | Google Scholar | `"Roman Urdu" "spelling variation" LLM` | none noted | about 10 | 0 direct | Hate speech, sentiment, idioms, language identification; none varied spelling for LLM MCQs |
+| Nov 2026 | Google Scholar | `"Roman Urdu" MMLU` | none noted | 7 | 1 related | U-MIRAGE appeared; no Roman Urdu MMLU found |
+| Nov 2026 | arXiv | `romanized Urdu` | all fields | 36 | 0 direct | Mostly hate speech, sentiment, transliteration, language ID |
+| Nov 2026 | arXiv | `Urdu MMLU` | all fields | 2 | 1 | UrduMMLU and IndicMMLU-Pro |
+| Nov 2026 | Semantic Scholar | several `"Urdu"`/`"Roman Urdu"` queries | none | counts not informative | n/a | Result counts from loose matching are not evidence of a gap |
+| Nov 2026 | AI literature tools (Consensus, Jenni) | gap and novelty prompts | tool defaults | n/a | n/a | **Not reproducible.** Tool summaries; they raised Belebele (L02) as a threat. Never cite the tools' percentages |
+
+### 3.2 Searches to run on Day 1 and again on Day 4 (record date, filters, counts)
+
 | Query | Where | Done (Day 1) | Done (Day 4) |
 |---|---|---|---|
 | `"Roman Urdu" benchmark transliterated` | Scholar, arXiv | ☐ | ☐ |
