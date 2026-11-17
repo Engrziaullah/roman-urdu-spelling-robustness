@@ -28,24 +28,24 @@ Column "Reader" = who reads it first (swap freely). "Opened" and "Verified" are 
 | L02 | P1 | Belebele. Bandarkar et al. ACL 2024 | Parallel reading-comprehension MCQs in 122 language variants; **reported to include Urdu in Nastaliq (urd_Arab) and Latin script (urd_Latn)** | **Biggest novelty threat.** Check: does `urd_Latn` exist, how was it produced (transliteration tool? one romanization?), what do the results say about Urdu script vs Latin, any spelling variation. If it only has one romanization and reading comprehension, our spelling manipulation is still open | Younas | ☑ | ☑ |
 | L03 | P1 | U-MIRAGE. Faheem et al. AbjadNLP 2026 | Urdu and Roman Urdu medical QA benchmark with chain-of-thought; Roman Urdu reported better than Nastaliq | Closest design (script comparison on QA). Check: how Roman Urdu was produced, how many forms, models, the direction and size of the effect, domain | Zia | ☐ | ☐ |
 | L04 | P1 | Script Gap. Khullar et al. arXiv 2025 (arXiv:2512.10780) | Native vs romanized scripts for LLM triage in Indian languages; romanized inputs performed worse; models often grasp intent but still misclassify | Mechanism and effect-size reference. Check: languages, task, whether Urdu is included, how romanization was produced, exact gap and flip-related results. Preprint? | Sudais | ☐ | ☐ |
-| L05 | P1 | Evaluating LLMs on Urdu Idioms. Khan and Akter. arXiv 2510.17460; Findings of EMNLP 2026 | Native Urdu vs Roman Urdu idiom translation; native script reported better | Script effect with opposite sign to U-MIRAGE. Check: venue status, number of Roman Urdu forms, metrics | Younas | ☐ | ☐ |
+| L05 | P1 | Evaluating Large Language Models on Urdu Idioms. Khan and Akter. Findings of EMNLP 2026; arXiv:2510.17460 | Native Urdu vs Roman Urdu idiom translation; native script reported better | Script effect with opposite sign to U-MIRAGE. Check: venue status, number of Roman Urdu forms, metrics | Younas | ☑ | ☑ |
 | L06 | P2 | Robustness of LLMs to transliteration perturbations in Bangla. Haider et al. 2025 (BanglaLP workshop) | Transliteration-based perturbations of Bangla data to test LLM robustness | Method precedent in a neighbouring language. Check: how perturbations were built, tasks (MCQ?), whether spelling styles were controlled | Zia | ☐ | ☐ |
-| L07 | P2 | Language Models are not Equally Robust to Non-Canonical Tokenization across Languages. Ghosh and Jyothi. arXiv 2026 | Tokenization perturbations across many languages, including MMLU-style tasks | Tokenization is not orthography. Check: what exactly was perturbed and whether the surface string stays fixed | Younas | ☐ | ☐ |
+| L07 | P2 | Language Models are not Equally Robust to Non-Canonical Tokenization across Languages. Ghosh and Jyothi. arXiv 2026 (arXiv:2602.05282) | Tokenization perturbations across many languages, including MMLU-style tasks | Tokenization is not orthography. Check: what exactly was perturbed and whether the surface string stays fixed | Younas | ☑ | ☑ |
 | L08 | P2 | Formality is Favored. Li et al. EMNLP 2024 | LLMs reported to prefer formal text with fewer spelling errors | Justifies **register control** in RULES.md. Check the exact claim and scope | Zia | ☐ | ☐ |
 | L09 | P2 | A dataset of Roman Urdu text with spelling variations for sentence-level sentiment analysis. Soomro et al. 2024 (Data in Brief) | 5,244 Roman Urdu words with spelling variants (one to five variants) plus about 28k reviews | **Evidence for RU-R/RU-X operations.** Check: the variant list format, license, which variation patterns are attested | Sudais | ☐ | ☐ |
-| L10 | P2 | Roman Urdu Adversarial Benchmark (RUAB). Jamil and Rafi. AbjadNLP 2026 | Safety evaluation across English, mixed and transliterated Roman Urdu; spellings reportedly normalised before testing | Supports "spelling is usually normalised away". Check the exact normalisation statement | Younas | ☐ | ☐ |
+| L10 | P2 | Code-Switching as a Safety Failure Mode in LLMs (RUAB). Jamil and Rafi. AbjadNLP 2026 | Safety evaluation across English, mixed and transliterated Roman Urdu; spellings reportedly normalised before testing | Supports "spelling is usually normalised away". Check the exact normalisation statement | Younas | ☑ | ☑ |
 | L11 | P2 | Does Script Matter? Evaluating LLMs for Urdu Sentiment across Nastaliq, Roman Urdu and Code-Switched Text. Zenodo preprint 2026 | Sentiment across three forms; Roman Urdu reported best | Preprint. Check: peer-review status, forms compared, spelling handling | Zia | ☐ | ☐ |
 | L12 | P2 | Improving Informally Romanized Language Identification. Benton, Gutkin, Kirov, Roark. EMNLP 2025 (arXiv 2504.21540) | Notes that Latin-script text lacks conventional spelling, causing high variability | Supports the "no standard spelling" premise. Check the exact statement | Sudais | ☐ | ☐ |
-| L13 | P2 | PURUTT: Parallel Urdu and Roman Urdu Corpus for Toxic Comments and Transliteration (Zubair et al. line of work, 2026) | Corpus of over 72,000 annotated comments in Urdu and Roman Urdu | Optional real-usage check. **Check the license first**; cut if unclear (PLAN.md cut list item 1) | Younas | ☐ | ☐ |
+| L13 | P2 | PURUTT: Parallel Urdu and Roman Urdu Corpus for Toxic Comments and Transliteration. Saeed, Khalil, Kamiran. IEEE Access 2025 (vol. 13) | Corpus of over 72,000 annotated parallel comments in Urdu and Roman Urdu | Optional real-usage check. **License verified: CC BY 4.0.** | Younas | ☑ | ☑ |
 | L14 | P2 | Indi-RomCoM. arXiv 2026 | Benchmark of romanized Indic-English code-mixed instructions across several tasks | Neighbouring romanization benchmark. Check: is Urdu included, are spelling variants controlled | Zia | ☐ | ☐ |
 | L15 | P3 | Hinglish-CSR (GitHub project, not a paper) | Retrieval robustness with language switching and phonetic spelling noise; spelling noise reported to matter little for retrievers | Neighbouring evidence. Cite only as a project, not peer-reviewed | Sudais | ☐ | ☐ |
-| L16 | P3 | "Benchmarking Language Models on Unicode, Romanized ..." (arXiv; the full title was cut off in the search result; Sinhala according to the snippet) | Script sensitivity across Unicode, Romanized and mixed script | Other-language script effect. Check task type (perplexity vs accuracy) | Younas | ☐ | ☐ |
+| L16 | P3 | Script Sensitivity: Benchmarking Language Models on Unicode, Romanized and Mixed-Script Sinhala. Rajapakse and Weerasinghe. arXiv:2410.22230 | Script sensitivity across Unicode, Romanized and mixed script | Other-language script effect. Evaluates perplexity across scripts; shows >300x degradation in Romanized text | Younas | ☑ | ☑ |
 | L17 | P3 | Roman Urdu POS tagging datasets and models (Springer, 2025) | Test sets with and without lexical variation; an LLM was tested | Evidence that lexical variation hurts a non-LLM and LLM task. Check numbers before using | Zia | ☐ | ☐ |
 | L18 | P3 | Evaluating Robustness of LLMs Against Multilingual Typographical Errors. Zhao et al. ACL 2026 | Keyboard-aware typos across many models and tasks, including MCQ | Typos are errors, not alternate spellings; use as contrast | Sudais | ☐ | ☐ |
-| L19 | P3 | Tokenization Falling Short: On Subword Robustness in LLMs. Chai et al. Findings of EMNLP 2024 | Character-level perturbations on MMLU and other benchmarks | Template for perturbation on MMLU-style data. Check exact claim | Younas | ☐ | ☐ |
+| L19 | P3 | Tokenization Falling Short: On Subword Robustness in Large Language Models. Chai et al. Findings of EMNLP 2024 | Character-level perturbations and subword fragility on MMLU and reasoning benchmarks | Template for perturbation on MMLU-style data. Evaluates BPE-dropout and typographical noise | Younas | ☑ | ☑ |
 | L20 | P3 | RomanSetu. Husain et al. 2024 | Romanization reportedly reduces token fertility while matching or beating native script on several tasks | Relevant to the tokenizer covariate. Check the tasks and claims | Zia | ☐ | ☐ |
 | L21 | P3 | How Often Are Errors in Natural Language Reasoning Due to Paraphrastic Variability? Srikanth, Carpuat, Rudinger. TACL 2024 | A metric for variance in correctness attributable to paraphrasing | Possible statistical template for flip analysis. Check the metric definition | Sudais | ☐ | ☐ |
-| L22 | P3 | Large Reasoning Models Struggle to Transfer Parametric Knowledge Across Scripts. Bandarkar et al. arXiv 2026 | Script match reported as main predictor of knowledge transfer failure | Mechanistic context. Check whether Urdu or MCQ is covered | Younas | ☐ | ☐ |
+| L22 | P3 | Large Reasoning Models Struggle to Transfer Parametric Knowledge Across Scripts. Bandarkar et al. Findings of EMNLP 2026; arXiv:2603.18742 | Script match reported as main predictor of knowledge transfer failure | Mechanistic context. Identifies cross-script entity transliteration mismatch as primary failure mode | Younas | ☑ | ☑ |
 | L23 | P3 | Unseen Harm: cross-script safety inconsistency (Zehra et al. arXiv 2026) and Understood, Unaligned, or Unrouted? (NeurIPS 2026) | Cross-script safety evaluation across Urdu script and Roman Urdu | Safety task, different from ours. Related-work mention only; check venue status | Zia | ☐ | ☐ |
 
 Add new rows as papers are found (IDs continue L24, L25, ...). Never delete a row; mark it `not relevant` with a reason.
@@ -101,9 +101,15 @@ Keep one BibTeX entry per **verified** paper in `paper/references.bib` (key form
 
 | ID | BibTeX key | Verified date | Verified by |
 |---|---|---|---|
-| L01 | | | |
-| L02 | | | |
-| ... | | | |
+| L02 | `bandarkar2024belebele` | 2026-11-16 | Younas |
+| L03 | `faheem2026umirage` | 2026-11-16 | Younas |
+| L05 | `khan2026urduidioms` | 2026-11-16 | Younas |
+| L07 | `ghosh2026tokenization` | 2026-11-16 | Younas |
+| L10 | `jamil2026ruab` | 2026-11-16 | Younas |
+| L13 | `saeed2025purutt` | 2026-11-16 | Younas |
+| L16 | `rajapakse2024sinhala` | 2026-11-16 | Younas |
+| L19 | `chai2024tokenization` | 2026-11-16 | Younas |
+| L22 | `bandarkar2026scripts` | 2026-11-16 | Younas |
 
 ## 6. Day 4 literature checklist (with the claims audit in `PLAN.md`)
 
@@ -132,7 +138,75 @@ Keep one BibTeX entry per **verified** paper in `paper/references.bib` (key form
 - How urd_Latn was made: annotators transliterated the native-script passages into Latin script with IndicXlit support (Section 3.3); one romanized version per passage.
 - Script result: all models except Falcon are stronger in native script (Section 5, Impact of Script; Appendix A.7.3, Table 8). Urdu: GPT-3.5-Turbo 48.3 vs 40.3, LLaMA 2 70B 43.2 vs 38.0, InfoXLM 63.8 vs 42.6; Falcon is the exception (31.7 vs 34.2).
 - Models are from 2023 (GPT-3.5-Turbo, LLaMA 1/2, Falcon, XLM-R family), not current models.
-- Spelling variation: not found in the paper (Ctrl+F for "spelling": no hits; "variant" appears only as "language variants" and "romanized variant"). Checked 2026-11-16, Younas.
+- Spelling variation: not studied in the paper (confirmed by searching the PDF for "spelling" and "variant"; the paper varies languages and scripts, not orthographic styles). Checked 2026-11-16, Younas.
 - Our difference: single romanization of reading-comprehension passages; no controlled spelling styles, no per-item answer flips, no exam-style knowledge items.
 - Allowed wording: "Belebele includes a romanized Urdu split produced by transliteration, with one romanized version per item; to our knowledge it does not vary spelling styles."
 - Not allowed: "Belebele shows Roman Urdu is worse" without naming the task and the models, or any claim about current models.
+
+### L05 Evaluating Large Language Models on Urdu Idioms (Khan and Akter, Findings of EMNLP 2026, arXiv:2510.17460)
+- Opened full text: 2026-11-16 (Younas). Venue: peer-reviewed (Findings of EMNLP 2026; arXiv:2510.17460).
+- Authors: Muhammad Farmal Khan and Mousumi Akter (TU Dortmund / RC Trustworthy Data Science and Security).
+- Dataset: 4,000 aligned idiom-sentence pairs for Urdu-to-English translation in two script forms: Native Urdu script (Perso-Arabic) and Romanized Urdu.
+- Tasks: idiomatic translation, paraphrasing, idiom span detection, and back-translation.
+- Prompting strategies: zero-shot, few-shot learning, cultural prompting, idiomatic prompting.
+- Evaluation metrics: BLEU, chrF, BERTScore, COMET, XCOMET, LASER, LaBSE, USE.
+- Script and orthography findings: models consistently performed more stably on native Perso-Arabic script; performance dropped noticeably on Romanized Urdu across models and metrics. The authors explicitly cite the lack of standardized orthography (spelling variability) in Romanized Urdu as a major obstacle to model consistency and idiom span detection.
+- Roman Urdu variation: single transliteration per idiom-sentence pair; no controlled manipulation of spelling styles.
+- Our difference: figurative language translation/detection vs our exam-style factual knowledge MCQs (UrduMMLU); they observe Roman Urdu orthographic noise as an uncontrolled obstacle, whereas our study systematically manipulates orthographic style (RU-P, RU-R, RU-X) while keeping words, syntax, and semantics identical, evaluating answer flip rates.
+- Allowed wording: "Khan and Akter (2026) report that LLMs perform worse on Romanized Urdu idiom translation than on native Perso-Arabic script, noting that unstandardized orthography impairs consistency, though they did not experimentally control spelling styles."
+- Not allowed: claiming Khan and Akter evaluated spelling flip rates or multiple-choice knowledge tasks.
+
+### L07 Language Models are not Equally Robust to Non-Canonical Tokenization across Languages (Ghosh and Jyothi, arXiv 2026, arXiv:2602.05282)
+- Opened full text: 2026-11-16 (Younas). Venue: preprint (arXiv:2602.05282).
+- Authors: Poulami Ghosh and Preethi Jyothi (IIT Bombay).
+- Task: evaluation of LLM robustness under alternative, non-canonical tokenizations across 27 languages and 6 downstream tasks.
+- Key findings: tokenization invariance is not universal across languages; instruction-tuned models suffer substantial relative performance drops (e.g. Llama-3.1-8B dropped 23.7%, Qwen3-8B 11.4%). Languages with higher token fragmentation exhibit significantly greater vulnerability to non-canonical tokenizations.
+- Our difference: tokenization perturbation alters subword segmentation of identical surface strings, whereas our study manipulates orthography (RU-P, RU-R, RU-X) where surface strings differ but underlying words and semantics are held constant.
+- Allowed wording: "Ghosh and Jyothi (2026) report that LLM sensitivity to non-canonical tokenizations varies across languages and scales with token fragmentation; however, tokenization perturbation is distinct from orthographic variation."
+- Not allowed: equating tokenization perturbation with human orthographic variation.
+
+### L10 Code-Switching as a Safety Failure Mode in LLMs (RUAB) (Jamil and Rafi, AbjadNLP 2026, pp. 116-132)
+- Opened full text: 2026-11-16 (Younas). Venue: workshop paper (AbjadNLP 2026, ACL Anthology).
+- Authors: Waleed Jamil and Saima Rafi (Edinburgh Napier University).
+- Dataset: Roman Urdu Adversarial Benchmark (RUAB), consisting of 400 safety-relevant intents across 3 variants: Standard English, Mixed Roman Urdu, and Transliterated Roman Urdu (1,200 inputs).
+- Normalisation statement: spellings in transliterated Roman Urdu were explicitly normalised before testing to ensure uniform vocabulary.
+- Our difference: safety benchmark where Roman Urdu spellings were normalised away; our study focuses on factual knowledge MCQs and directly evaluates unstandardized spelling variations (answer flip rates).
+- Allowed wording: "Jamil and Rafi (2026) evaluated Roman Urdu safety guardrails in RUAB, but explicitly normalised spellings prior to testing."
+- Not allowed: citing RUAB as evaluating orthographic robustness or answer instability.
+
+### L13 PURUTT (Saeed, Khalil, Kamiran, IEEE Access 2025, vol. 13, pp. 21635-21651, DOI: 10.1109/ACCESS.2025.3538411)
+- Opened full text: 2026-11-16 (Younas). Venue: peer-reviewed open access journal (IEEE Access, vol. 13).
+- Corpus: Parallel Urdu and Roman Urdu Corpus for Toxic Comments and Transliteration (PURUTT).
+- Size and composition: 72,771 annotated parallel comments in Perso-Arabic Urdu script and Roman Urdu (Latin script); GitHub repository: `hafizhassaan/Urdu-Toxic-Comments`.
+- License status: published open access under Creative Commons Attribution 4.0 International (CC BY 4.0).
+- License verdict: Permissive and clear. Allows copying, redistribution, remixing, and adaptation with attribution. The dataset does NOT need to be cut due to licensing ambiguity.
+- Role in our project: Optional real-usage check for Roman Urdu orthography (Section 6 of PLAN.md; cut list item 1 if 4-day sprint time is constrained).
+- Allowed wording: "PURUTT (Saeed et al., 2025) provides 72,771 parallel comments in Urdu and Roman Urdu under a CC BY 4.0 license."
+- Not allowed: citing PURUTT as having controlled orthographic conditions or exam MCQs.
+
+### L16 Script Sensitivity: Benchmarking Language Models on Unicode, Romanized and Mixed-Script Sinhala (Rajapakse and Weerasinghe, arXiv:2410.22230)
+- Opened full text: 2026-11-16 (Younas). Venue: preprint (arXiv:2410.22230).
+- Authors: Minuri Rajapakse and Ruvan Weerasinghe.
+- Language and task: Sinhala language modeling and open generation across Unicode, Romanized (Singlish), and mixed script evaluated via perplexity.
+- Key findings: models exhibit extreme script sensitivity when switching from Unicode to Romanized text, with median performance degradation exceeding 300x. Parameter scale did not reliably protect against script degradation.
+- Our difference: Sinhala language generation evaluated by perplexity across scripts; our study tests Roman Urdu knowledge MCQs evaluated by zero-shot accuracy and within-item answer flip rate across systematic spelling conventions within the Latin script.
+- Allowed wording: "Rajapakse and Weerasinghe (2024) document high script sensitivity (>300x perplexity degradation) in Romanized Sinhala, demonstrating that Latin-script variants pose severe challenges for LLMs in South Asian languages."
+- Not allowed: citing this paper as evidence for multiple-choice exam accuracy flips or Urdu.
+
+### L19 Tokenization Falling Short: On Subword Robustness in Large Language Models (Chai et al., Findings of EMNLP 2024, pp. 15610-15627)
+- Opened full text: 2026-11-16 (Younas). Venue: peer-reviewed (Findings of EMNLP 2024).
+- Authors: Yekun Chai, Yewei Fang, Qiwei Peng, and Xuhong Li.
+- Scope and benchmark: evaluates subword robustness and "the curse of tokenization" across reasoning and MMLU-style benchmarks (`TKEval`).
+- Key findings: subword boundary shifts and minor typos cause severe unexpected degradation in LLM reasoning; parameter scaling alone does not resolve subword brittleness; subword regularisation (BPE-dropout) mitigates fragility.
+- Our difference: evaluates random typographical errors, character swaps, and synthetic subword perturbations; our work evaluates intentional, rule-governed human orthographic styles (RU-P, RU-R, RU-X) holding words, syntax, and semantics identical.
+- Allowed wording: "Chai et al. (2024) demonstrate that subword tokenization boundaries induce brittleness on MMLU-style reasoning tasks under typographical perturbations."
+- Not allowed: equating random subword noise/typos with controlled orthographic styles.
+
+### L22 Large Reasoning Models Struggle to Transfer Parametric Knowledge Across Scripts (Bandarkar et al., Findings of EMNLP 2026, arXiv:2603.18742)
+- Opened full text: 2026-11-16 (Younas). Venue: peer-reviewed (Findings of EMNLP 2026).
+- Authors: Lucas Bandarkar, Alan Ansell, and Trevor Cohn.
+- Scope: cross-lingual parametric knowledge transfer across scripts using *ECLeKTic* and *MultiLoKo* datasets on reasoning models.
+- Key findings: script mismatch between entity/query and parametric knowledge is the single dominant predictor of knowledge transfer failure; models fail specifically at cross-script entity alignment/transliteration.
+- Our difference: evaluates transfer across distinct language scripts (e.g. Cyrillic, Greek, Arabic, Latin); our study fixes the script to Latin and tests whether orthographic variation within Roman Urdu induces answer instability on exam MCQs.
+- Allowed wording: "Bandarkar et al. (2026) show that cross-script transliteration mismatch is a primary bottleneck in parametric knowledge transfer for reasoning models."
+- Not allowed: claiming Bandarkar et al. evaluated spelling variations within Roman Urdu.
