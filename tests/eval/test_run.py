@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -329,6 +329,7 @@ def test_runner_stops_after_consecutive_final_failures(tmp_path: Path) -> None:
 
 def test_daily_quota_stops_before_an_unattempted_request_and_resumes(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class CountingProvider:
         calls = 0
@@ -362,13 +363,33 @@ def test_daily_quota_stops_before_an_unattempted_request_and_resumes(
         run_date=run_date,
         max_items=2,
     )
+    next_day = (
+        datetime.now(timezone.utc).date() + timedelta(days=1)
+    ).isoformat()
+    monkeypatch.setattr(
+        "src.eval.run._utc_now",
+        lambda: f"{next_day}T00:00:00Z",
+    )
+    third = _run(
+        tmp_path,
+        provider=provider,
+        model_config=model,
+        mock=False,
+        output_dir=output_dir,
+        run_log_path=run_log_path,
+        run_date=next_day,
+        max_items=2,
+    )
 
     assert first.calls_made == 1
     assert first.stopped_after_daily_quota is True
     assert second.calls_made == 0
     assert second.cache_hits == 1
     assert second.stopped_after_daily_quota is True
-    assert provider.calls == 1
+    assert third.calls_made == 1
+    assert third.cache_hits == 1
+    assert third.stopped_after_daily_quota is False
+    assert provider.calls == 2
 
 
 def test_http_429_stops_the_run_without_retrying_or_looping(tmp_path: Path) -> None:
