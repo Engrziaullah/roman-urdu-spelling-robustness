@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from mixed import mixed_table
+from mixed import mixed_table, gee_table
 
 
 def build(effects, n_items=300, seed=0):
@@ -29,4 +29,20 @@ def test_strong_effect_has_right_sign():
     t = mixed_table(df).set_index("condition_vs_NU")
     assert t.loc["RU-X", "log_odds"] < -1.5      # asli farq lagbhag -2.2
     assert t.loc["RU-X", "hi"] < 0               # CI poora 0 se neeche
+    assert abs(t.loc["RU-P", "log_odds"]) < 0.5
+
+
+def test_gee_no_effect_is_near_zero():
+    df = build({c: 0.7 for c in ["NU", "RU-P", "RU-R", "RU-X", "RT"]})
+    t = gee_table(df)
+    assert len(t) == 4
+    assert t["converged"].all()
+    assert (t["log_odds"].abs() < 0.4).all()
+
+
+def test_gee_strong_effect_has_right_sign():
+    df = build({"NU": 0.9, "RU-P": 0.9, "RU-R": 0.9, "RU-X": 0.5, "RT": 0.9})
+    t = gee_table(df).set_index("condition_vs_NU")
+    assert t.loc["RU-X", "log_odds"] < -1.5
+    assert t.loc["RU-X", "hi"] < 0
     assert abs(t.loc["RU-P", "log_odds"]) < 0.5
