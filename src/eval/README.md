@@ -49,16 +49,15 @@ to `results/RUN_LOG.md`; mock and dry runs do not.
 Rerun the same command with the same model slug, input, conditions, and repeat
 number. The cache key is `(model_slug, item_id, condition, repeat)`, independent
 of `purpose` and `run_id`. Existing rows are appended, never overwritten; a new
-repeat creates a separate row. **Current behavior:** any matching row, including
-one with a non-null `error`, is treated as cached and skipped. If the run contains
-errors, review them before resuming; failed-row retry and duplicate-row selection
-are pending agreement with the analysis owner because the result schema has no
-attempt field.
+repeat creates a separate row. The latest appended row for a key is authoritative.
+A latest row with an error is retried on resume and appended as another row; a
+latest row with `error: null` is skipped. Older attempts are retained, and result
+checking distinguishes retry history from duplicate successful requests.
 
 HTTP 429 and the configured daily quota stop a real run cleanly. Consecutive
 non-429 final failures also stop at `max_consecutive_failures`. A stopped run
-writes its completed rows and a run-log summary. Under the current cache rule, a
-saved error row is not retried on resume.
+writes its completed rows and a run-log summary. Under the agreed cache rule, a
+saved error row is retried on resume when it is the latest attempt.
 
 ## Noise-subset repeats
 
@@ -76,8 +75,16 @@ is supplied. Run the three repeats for one model with:
 python -m src.eval.run --model-slug model-1 --items data/processed/items_v1.jsonl --conditions NU,RU-P,RU-R,RU-X,RT --noise-subset
 ```
 
-Non-NU real runs require `data/processed/FROZEN.md`. Mock runs do not contact
-providers and are exempt from the guard.
+Non-NU real runs require `data/processed/FROZEN.md` to contain a case-insensitive
+line of this form (other text in the file is allowed):
+
+```text
+items_v1.jsonl sha256: <64 hex chars>
+```
+
+The runner hashes the UTF-8 text supplied by `--items` after replacing CRLF with
+LF and refuses to run if the line is missing or the hash differs. NU runs and
+mock runs are exempt. Mock runs do not contact providers.
 
 ## Planning and checking
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -175,11 +176,15 @@ def read_items(items_path: str | Path, *, mock: bool = False) -> list[dict[str, 
 
 
 def _load_existing_keys(model_output_dir: Path) -> set[tuple[str, str, str, int]]:
-    keys: set[tuple[str, str, str, int]] = set()
+    latest_rows: dict[
+        tuple[str, str, str, int],
+        tuple[tuple[int, int, str], bool],
+    ] = {}
     if not model_output_dir.exists():
-        return keys
+        return set()
     for result_file in sorted(model_output_dir.glob("*.jsonl")):
         try:
+            file_order = result_file.stat().st_mtime_ns
             with result_file.open(encoding="utf-8") as file:
                 for line_number, line in enumerate(file, start=1):
                     if not line.strip():
@@ -192,22 +197,66 @@ def _load_existing_keys(model_output_dir: Path) -> set[tuple[str, str, str, int]
                         ) from exc
                     if not isinstance(row, dict) or not all(
                         name in row
-                        for name in ("model_slug", "item_id", "condition", "repeat")
+                        for name in (
+                            "model_slug",
+                            "item_id",
+                            "condition",
+                            "repeat",
+                            "error",
+                        )
                     ):
                         raise RunInputError(
-                            f"Cached row lacks cache-key fields at {result_file}:{line_number}."
+                            f"Cached row lacks cache-key/error fields at "
+                            f"{result_file}:{line_number}."
                         )
-                    keys.add(
-                        (
-                            row["model_slug"],
-                            row["item_id"],
-                            row["condition"],
-                            row["repeat"],
-                        )
+                    key = (
+                        row["model_slug"],
+                        row["item_id"],
+                        row["condition"],
+                        row["repeat"],
                     )
+                    order = (file_order, line_number, str(result_file))
+                    if key not in latest_rows or order > latest_rows[key][0]:
+                        latest_rows[key] = (order, row["error"] is None)
         except OSError as exc:
             raise RunInputError(f"Cannot read cached results {result_file}: {exc}") from exc
-    return keys
+    return {key for key, (_order, finished) in latest_rows.items() if finished}
+
+
+def _normalized_items_sha256(items_path: str | Path) -> str:
+    """Hash UTF-8 item text after normalizing CRLF newlines to LF."""
+    path = Path(items_path)
+    try:
+        with path.open(encoding="utf-8", newline="") as file:
+            normalized = file.read().replace("\r\n", "\n")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise RunInputError(f"Cannot hash UTF-8 items file {path}: {exc}") from exc
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _verify_frozen_items_hash(items_path: str | Path, marker_path: Path) -> None:
+    """Require the marker's items_v1.jsonl SHA-256 to match the supplied items file."""
+    actual = _normalized_items_sha256(items_path)
+    if not marker_path.is_file():
+        raise RunInputError(
+            f"Non-NU real runs require {marker_path} with an "
+            f"'items_v1.jsonl sha256: <64 hex chars>' line; "
+            f"expected hash: <missing>, actual hash: {actual}."
+        )
+    try:
+        marker_text = marker_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise RunInputError(f"Cannot read frozen marker {marker_path}: {exc}") from exc
+    match = re.search(
+        r"(?im)^\s*items_v1\.jsonl\s+sha256:\s*([0-9a-f]{64})\s*$",
+        marker_text,
+    )
+    expected = match.group(1).lower() if match else "<missing>"
+    if expected != actual:
+        raise RunInputError(
+            f"Frozen item hash mismatch in {marker_path}: "
+            f"expected hash: {expected}, actual hash: {actual}."
+        )
 
 
 def _utc_now() -> str:
@@ -334,10 +383,7 @@ def run_pipeline(
             / "processed"
             / "FROZEN.md"
         )
-        if not marker.is_file():
-            raise RunInputError(
-                f"Non-NU real runs are blocked until {marker} exists."
-            )
+        _verify_frozen_items_hash(items_path, marker)
 
     items = read_items(items_path, mock=mock)
     selected = _select_items(items, conditions, max_items, item_ids)

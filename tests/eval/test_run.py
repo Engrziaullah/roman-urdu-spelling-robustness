@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -129,6 +130,41 @@ def test_resume_skips_already_recorded_request(tmp_path: Path) -> None:
     assert provider.calls == 1
 
 
+def test_resume_retries_failed_rows_and_latest_attempt_becomes_authoritative(
+    tmp_path: Path,
+) -> None:
+    class FailOnceProvider:
+        calls = 0
+
+        def complete(self, prompt, model_cfg, settings):
+            self.calls += 1
+            if self.calls == 1:
+                raise ProviderError("temporary failure", retryable=False)
+            return "A", 0.01, None
+
+    provider = FailOnceProvider()
+    first = _run(tmp_path, provider=provider, max_items=1)
+    second = _run(tmp_path, provider=provider, max_items=1)
+    third = _run(tmp_path, provider=provider, max_items=1)
+    output = (
+        tmp_path
+        / "temporary-results"
+        / "fixture"
+        / "2026-11-16_nu_r1.jsonl"
+    )
+    rows = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+
+    assert first.errors == 1
+    assert second.calls_made == 1
+    assert second.cache_hits == 0
+    assert third.calls_made == 0
+    assert third.cache_hits == 1
+    assert provider.calls == 2
+    assert len(rows) == 2
+    assert rows[0]["error"] == "temporary failure"
+    assert rows[1]["error"] is None
+
+
 def test_non_nu_real_run_requires_frozen_marker(tmp_path: Path) -> None:
     with pytest.raises(RunInputError, match="FROZEN.md"):
         run_pipeline(
@@ -140,6 +176,67 @@ def test_non_nu_real_run_requires_frozen_marker(tmp_path: Path) -> None:
             conditions=("RU-P",),
             mock=False,
             frozen_marker=tmp_path / "data" / "processed" / "FROZEN.md",
+            run_log_path=tmp_path / "RUN_LOG.md",
+        )
+
+
+def test_non_nu_frozen_hash_normalizes_crlf_and_utf8(tmp_path: Path) -> None:
+    item = read_items(MOCK_ITEMS)[0]
+    item["condition"] = "RU-P"
+    serialized = json.dumps(item, ensure_ascii=False) + "\n"
+    items_path = tmp_path / "items_v1.jsonl"
+    items_path.write_bytes(serialized.replace("\n", "\r\n").encode("utf-8"))
+    expected_hash = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    marker = tmp_path / "FROZEN.md"
+    marker.write_text(
+        f"Freeze approved.\nITEMS_V1.JSONL SHA256: {expected_hash.upper()}\n",
+        encoding="utf-8",
+    )
+
+    summary = run_pipeline(
+        items_path=items_path,
+        model_config=_model("groq"),
+        settings=_settings(),
+        provider=MockProvider(),
+        output_dir=tmp_path / "real-results",
+        conditions=("RU-P",),
+        mock=False,
+        frozen_marker=marker,
+        run_log_path=tmp_path / "RUN_LOG.md",
+        run_date="2026-11-16",
+        max_items=1,
+        sleep=lambda _seconds: None,
+    )
+
+    assert summary.calls_made == 1
+
+
+def test_non_nu_frozen_hash_mismatch_reports_expected_and_actual(
+    tmp_path: Path,
+) -> None:
+    item = read_items(MOCK_ITEMS)[0]
+    item["condition"] = "RU-P"
+    items_path = tmp_path / "items_v1.jsonl"
+    items_path.write_text(json.dumps(item) + "\n", encoding="utf-8")
+    marker = tmp_path / "FROZEN.md"
+    expected_hash = "0" * 64
+    marker.write_text(f"items_v1.jsonl sha256: {expected_hash}\n", encoding="utf-8")
+    normalized = items_path.read_bytes().replace(b"\r\n", b"\n")
+    actual_hash = hashlib.sha256(normalized).hexdigest()
+
+    with pytest.raises(
+        RunInputError,
+        match=f"expected hash: {expected_hash}, actual hash: {actual_hash}",
+    ):
+        run_pipeline(
+            items_path=items_path,
+            model_config=_model("groq"),
+            settings=_settings(),
+            provider=MockProvider(),
+            output_dir=tmp_path / "real-results",
+            conditions=("RU-P",),
+            mock=False,
+            frozen_marker=marker,
             run_log_path=tmp_path / "RUN_LOG.md",
         )
 
