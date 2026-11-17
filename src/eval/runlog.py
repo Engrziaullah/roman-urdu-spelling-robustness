@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -65,6 +66,30 @@ def append_result(
     return path
 
 
+def read_daily_call_count(path: str | Path, model_slug: str, run_date: str) -> int:
+    """Return logged provider calls for one model and UTC date."""
+    date.fromisoformat(run_date)
+    log_path = Path(path)
+    if not log_path.exists():
+        return 0
+    model_marker = f"| `{model_slug}` ("
+    total = 0
+    try:
+        with log_path.open(encoding="utf-8") as file:
+            for line_number, line in enumerate(file, start=1):
+                if not line.startswith(f"- {run_date}T") or model_marker not in line:
+                    continue
+                match = re.search(r"\bcalls=(\d+)(?:,|\s|$)", line)
+                if match is None:
+                    raise ValueError(
+                        f"Run log entry lacks calls count at {log_path}:{line_number}."
+                    )
+                total += int(match.group(1))
+    except OSError as exc:
+        raise ValueError(f"Cannot read run log {log_path}: {exc}") from exc
+    return total
+
+
 def append_run_summary(
     path: str | Path,
     *,
@@ -79,6 +104,7 @@ def append_run_summary(
     latency_mean_s: float | None,
     latency_min_s: float | None,
     latency_max_s: float | None,
+    stop_reason: str = "complete",
 ) -> None:
     """Append a Markdown summary for a real run."""
     output = Path(path)
@@ -92,7 +118,7 @@ def append_run_summary(
         f"- {date_utc} | `{run_id}` | `{model_slug}` (`{model_string}`): "
         f"calls={calls_made}, cache_hits={cache_hits}, errors={errors}, "
         f"invalid_rate={invalid_rate:.4f}, latency_s mean/min/max="
-        f"{mean}/{minimum}/{maximum}\n"
+        f"{mean}/{minimum}/{maximum}, stop_reason={stop_reason}\n"
     )
     with output.open("a", encoding="utf-8", newline="\n") as file:
         file.write(line)
