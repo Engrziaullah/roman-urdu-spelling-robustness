@@ -19,6 +19,13 @@ class ConfigError(ValueError):
 
 
 @dataclass(frozen=True)
+class NoiseSubset:
+    n_items: int
+    repeats: int
+    item_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class RunSettings:
     seed: int
     max_output_tokens: int
@@ -28,6 +35,7 @@ class RunSettings:
     max_consecutive_failures: int
     backoff_initial_s: float
     paths: dict[str, Path]
+    noise_subset: NoiseSubset | None = None
 
 
 @dataclass(frozen=True)
@@ -129,6 +137,38 @@ def load_run_settings(config_path: str | Path) -> RunSettings:
             raise ConfigError(f"Field 'paths.{key}' must be a path string in {path}.")
         resolved_paths[key] = (root / value).resolve()
 
+    noise_subset: NoiseSubset | None = None
+    raw_noise_subset = data.get("noise_subset")
+    if raw_noise_subset is not None:
+        if not isinstance(raw_noise_subset, dict):
+            raise ConfigError(f"Field 'noise_subset' must be a mapping in {path}.")
+        n_items = _positive_int(
+            _required(raw_noise_subset, "n_items", path), "noise_subset.n_items", path
+        )
+        noise_repeats = _positive_int(
+            _required(raw_noise_subset, "repeats", path), "noise_subset.repeats", path
+        )
+        item_ids = _required(raw_noise_subset, "item_ids", path)
+        if (
+            not isinstance(item_ids, list)
+            or any(not isinstance(item_id, str) or not item_id for item_id in item_ids)
+            or len(item_ids) != len(set(item_ids))
+        ):
+            raise ConfigError(
+                f"Field 'noise_subset.item_ids' must be a list of unique non-empty "
+                f"strings in {path}."
+            )
+        if item_ids and len(item_ids) != n_items:
+            raise ConfigError(
+                f"Field 'noise_subset.item_ids' must contain exactly n_items "
+                f"({n_items}) entries in {path}."
+            )
+        noise_subset = NoiseSubset(
+            n_items=n_items,
+            repeats=noise_repeats,
+            item_ids=tuple(item_ids),
+        )
+
     return RunSettings(
         seed=seed,
         max_output_tokens=max_output_tokens,
@@ -138,6 +178,7 @@ def load_run_settings(config_path: str | Path) -> RunSettings:
         max_consecutive_failures=max_consecutive_failures,
         backoff_initial_s=float(backoff_initial_s),
         paths=resolved_paths,
+        noise_subset=noise_subset,
     )
 
 
@@ -210,3 +251,21 @@ def load_model_config(
         checked_on=required_strings["checked_on"],
         api_key=api_key,
     )
+
+
+def configured_model_slugs(models_path: str | Path) -> tuple[str, ...]:
+    """Return configured model slugs without requiring completed provider values."""
+    data = _read_yaml(Path(models_path).resolve())
+    models = data.get("evaluated_models")
+    if not isinstance(models, list):
+        raise ConfigError(f"Field 'evaluated_models' must be a list in {models_path}.")
+    slugs = tuple(
+        model["slug"]
+        for model in models
+        if isinstance(model, dict)
+        and isinstance(model.get("slug"), str)
+        and model["slug"].strip()
+    )
+    if len(slugs) != len(set(slugs)):
+        raise ConfigError(f"Model slugs must be unique in {models_path}.")
+    return slugs

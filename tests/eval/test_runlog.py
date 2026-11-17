@@ -4,7 +4,12 @@ import json
 
 import pytest
 
-from src.eval.runlog import RESULT_FIELDS, append_result, append_run_summary
+from src.eval.runlog import (
+    RESULT_FIELDS,
+    append_result,
+    append_run_summary,
+    read_daily_call_count,
+)
 
 
 def _row() -> dict:
@@ -62,8 +67,11 @@ def test_run_summary_contains_required_metadata(tmp_path) -> None:
         latency_mean_s=0.2,
         latency_min_s=0.1,
         latency_max_s=0.3,
+        stop_reason="daily_quota",
     )
 
     text = path.read_text(encoding="utf-8")
     for expected in ("fixture-model", "calls=3", "cache_hits=1", "errors=0", "2026-11-16"):
         assert expected in text
+    assert "stop_reason=daily_quota" in text
+    assert read_daily_call_count(path, "fixture", "2026-11-16") == 3

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -227,6 +228,75 @@ def test_runner_stops_after_consecutive_final_failures(tmp_path: Path) -> None:
     assert summary.processed_requests == 2
     assert summary.invalid_rate == 1
     assert summary.stopped_after_consecutive_failures is True
+
+
+def test_daily_quota_stops_before_an_unattempted_request_and_resumes(
+    tmp_path: Path,
+) -> None:
+    class CountingProvider:
+        calls = 0
+
+        def complete(self, prompt, model_cfg, settings):
+            self.calls += 1
+            return "A", 0.01, None
+
+    provider = CountingProvider()
+    model = replace(_model("groq"), requests_per_day=1)
+    output_dir = tmp_path / "real-results"
+    run_log_path = tmp_path / "real-RUN_LOG.md"
+    run_date = datetime.now(timezone.utc).date().isoformat()
+    first = _run(
+        tmp_path,
+        provider=provider,
+        model_config=model,
+        mock=False,
+        output_dir=output_dir,
+        run_log_path=run_log_path,
+        run_date=run_date,
+        max_items=2,
+    )
+    second = _run(
+        tmp_path,
+        provider=provider,
+        model_config=model,
+        mock=False,
+        output_dir=output_dir,
+        run_log_path=run_log_path,
+        run_date=run_date,
+        max_items=2,
+    )
+
+    assert first.calls_made == 1
+    assert first.stopped_after_daily_quota is True
+    assert second.calls_made == 0
+    assert second.cache_hits == 1
+    assert second.stopped_after_daily_quota is True
+    assert provider.calls == 1
+
+
+def test_http_429_stops_the_run_without_retrying_or_looping(tmp_path: Path) -> None:
+    class RateLimitedProvider:
+        calls = 0
+
+        def complete(self, prompt, model_cfg, settings):
+            self.calls += 1
+            raise ProviderError("rate limited", retryable=True, status_code=429)
+
+    provider = RateLimitedProvider()
+    summary = _run(
+        tmp_path,
+        provider=provider,
+        settings=_settings(max_retries=3),
+        mock=False,
+        model_config=_model("groq"),
+        output_dir=tmp_path / "real-results",
+        run_log_path=tmp_path / "real-RUN_LOG.md",
+    )
+
+    assert provider.calls == 1
+    assert summary.calls_made == 1
+    assert summary.errors == 1
+    assert summary.stopped_after_rate_limit is True
 
 
 def test_cli_mock_run_uses_fixture_and_requires_temporary_output(

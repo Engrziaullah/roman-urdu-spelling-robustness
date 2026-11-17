@@ -58,6 +58,36 @@ def test_config_loads_from_fixture_and_resolves_paths(tmp_path: Path) -> None:
     assert settings.paths["results_raw"] == (tmp_path / "results" / "raw").resolve()
 
 
+def test_config_loads_noise_subset_ids_and_repeats(tmp_path: Path) -> None:
+    config_data = _config_data()
+    config_data["noise_subset"] = {
+        "n_items": 2,
+        "repeats": 3,
+        "item_ids": ["item-1", "item-2"],
+    }
+    config_path = _write_yaml(tmp_path / "configs" / "config.yaml", config_data)
+
+    noise_subset = load_run_settings(config_path).noise_subset
+
+    assert noise_subset is not None
+    assert noise_subset.n_items == 2
+    assert noise_subset.repeats == 3
+    assert noise_subset.item_ids == ("item-1", "item-2")
+
+
+def test_config_rejects_mismatched_noise_subset_ids(tmp_path: Path) -> None:
+    config_data = _config_data()
+    config_data["noise_subset"] = {
+        "n_items": 2,
+        "repeats": 3,
+        "item_ids": ["item-1"],
+    }
+    config_path = _write_yaml(tmp_path / "configs" / "config.yaml", config_data)
+
+    with pytest.raises(ConfigError, match="exactly n_items"):
+        load_run_settings(config_path)
+
+
 def test_todo_error_names_field_and_file(tmp_path: Path) -> None:
     config_data = _config_data()
     config_data["seed"] = "TODO"
