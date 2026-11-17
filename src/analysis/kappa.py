@@ -1,3 +1,6 @@
+import argparse
+import sys
+import warnings
 import numpy as np
 import pandas as pd
 
@@ -85,3 +88,89 @@ def kappa_table(df, n_boot=2000, seed=42):
             "kappa_noise": k_nz, "nz_ci_low": lo_nz, "nz_ci_high": hi_nz,
         })
     return pd.DataFrame(rows)
+
+
+def cohen_kappa(r1, r2):
+    """
+    Computes Cohen's kappa and observed raw agreement between two raters.
+    r1, r2: iterable of categorical ratings (e.g. ['y', 'n', ...]).
+    Returns (kappa, raw_agreement).
+    """
+    r1 = np.asarray(r1)
+    r2 = np.asarray(r2)
+    if len(r1) != len(r2):
+        raise ValueError("Raters must have the same number of annotations.")
+    n = len(r1)
+    if n == 0:
+        return np.nan, np.nan
+
+    cats = sorted(set(r1).union(set(r2)))
+    po = float(np.mean(r1 == r2))
+    pe = float(sum(np.mean(r1 == c) * np.mean(r2 == c) for c in cats))
+
+    if pe == 1.0:
+        k = 1.0 if po == 1.0 else 0.0
+    else:
+        k = (po - pe) / (1.0 - pe)
+
+    return float(k), float(po)
+
+
+def evaluate_kappa_sheet(sheet_path_or_df, target_threshold=0.80):
+    """
+    Reads a filled kappa sheet (CSV path or DataFrame), checks required columns,
+    computes Cohen's kappa and raw agreement, and warns if kappa < target_threshold.
+    Never modifies the input file.
+    """
+    if isinstance(sheet_path_or_df, (str, bytes)) or hasattr(sheet_path_or_df, "__fspath__"):
+        df = pd.read_csv(sheet_path_or_df)
+    else:
+        df = sheet_path_or_df.copy()
+
+    required_cols = {"item_id", "rater_1", "rater_2"}
+    missing = required_cols - set(df.columns)
+    if missing:
+        raise ValueError(f"Kappa sheet missing required columns: {missing}")
+
+    if df.empty:
+        raise ValueError("Kappa sheet is empty")
+
+    r1 = df["rater_1"].astype(str).str.strip().str.lower()
+    r2 = df["rater_2"].astype(str).str.strip().str.lower()
+
+    n = len(df)
+    k, po = cohen_kappa(r1, r2)
+
+    passed = bool(k >= target_threshold)
+    if not passed and not np.isnan(k):
+        warnings.warn(
+            f"Cohen's kappa {k:.4f} is below the target threshold of {target_threshold:.2f} (Gate G2 requirement). "
+            f"Per PLAN.md, revise rules and re-rate.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    return {
+        "n_items": n,
+        "raw_agreement": po,
+        "cohen_kappa": k,
+        "target_threshold": target_threshold,
+        "passed": passed,
+    }
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Evaluate inter-rater agreement (Cohen's kappa) from a CSV sheet.")
+    parser.add_argument("--sheet", type=str, required=True, help="Path to filled kappa CSV sheet.")
+    parser.add_argument("--threshold", type=float, default=0.80, help="Target kappa threshold (default: 0.80).")
+    args = parser.parse_args()
+
+    res = evaluate_kappa_sheet(args.sheet, target_threshold=args.threshold)
+    print("=== Inter-Rater Agreement Evaluation ===")
+    print(f"Items evaluated: {res['n_items']}")
+    print(f"Raw agreement:   {res['raw_agreement']:.4f} ({res['raw_agreement'] * 100:.2f}%)")
+    print(f"Cohen's kappa:   {res['cohen_kappa']:.4f}")
+    if res["passed"]:
+        print(f"Status: PASSED (>= {res['target_threshold']:.2f})")
+    else:
+        print(f"Status: WARNING: Below target threshold ({res['target_threshold']:.2f}). Gate G2 requires rule revision.")
