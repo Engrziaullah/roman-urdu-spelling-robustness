@@ -26,9 +26,9 @@ Column "Reader" = who reads it first (swap freely). "Opened" and "Verified" are 
 |---|---|---|---|---|---|---|---|
 | L01 | P1 | UrduMMLU. Tabassum, Ahmad, Iqbal, Aijaz, Ahsan, Nakov. EMNLP 2026. arXiv:2606.07167. HF: `MBZUAI/UrduMMLU` | Large benchmark of Urdu exam-style MCQs (about 26k items, 26 subjects, 5 domains); Nastaliq only | **Our source data.** Check: schema, number of options, domain and subject fields, answer format, license on the dataset card (CC BY 4.0?), whether any Roman Urdu version exists | Sudais | ☐ | ☐ |
 | L02 | P1 | Belebele. Bandarkar et al. ACL 2024 | Parallel reading-comprehension MCQs in 122 language variants; **reported to include Urdu in Nastaliq (urd_Arab) and Latin script (urd_Latn)** | **Biggest novelty threat.** Check: does `urd_Latn` exist, how was it produced (transliteration tool? one romanization?), what do the results say about Urdu script vs Latin, any spelling variation. If it only has one romanization and reading comprehension, our spelling manipulation is still open | Younas | ☑ | ☑ |
-| L03 | P1 | U-MIRAGE. Faheem et al. AbjadNLP 2026 | Urdu and Roman Urdu medical QA benchmark with chain-of-thought; Roman Urdu reported better than Nastaliq | Closest design (script comparison on QA). Check: how Roman Urdu was produced, how many forms, models, the direction and size of the effect, domain | Zia | ☐ | ☐ |
+| L03 | P1 | U-MIRAGE. Faheem et al. AbjadNLP 2026 | Urdu and Roman Urdu medical QA benchmark with chain-of-thought; Roman Urdu reported better than Nastaliq | Closest design (script comparison on QA). Check: how Roman Urdu was produced, how many forms, models, the direction and size of the effect, domain | Younas | ☑ | ☑ |
 | L04 | P1 | Script Gap. Khullar et al. arXiv 2025 (arXiv:2512.10780) | Native vs romanized scripts for LLM triage in Indian languages; romanized inputs performed worse; models often grasp intent but still misclassify | Mechanism and effect-size reference. Check: languages, task, whether Urdu is included, how romanization was produced, exact gap and flip-related results. Preprint? | Sudais | ☐ | ☐ |
-| L05 | P1 | Evaluating LLMs on Urdu Idioms. Khan and Akter. arXiv 2510.17460; Findings of EMNLP 2026 | Native Urdu vs Roman Urdu idiom translation; native script reported better | Script effect with opposite sign to U-MIRAGE. Check: venue status, number of Roman Urdu forms, metrics | Younas | ☐ | ☐ |
+| L05 | P1 | Evaluating Large Language Models on Urdu Idioms. Khan and Akter. Findings of EMNLP 2026; arXiv:2510.17460 | Native Urdu vs Roman Urdu idiom translation; native script reported better | Script effect with opposite sign to U-MIRAGE. Check: venue status, number of Roman Urdu forms, metrics | Younas | ☑ | ☑ |
 | L06 | P2 | Robustness of LLMs to transliteration perturbations in Bangla. Haider et al. 2025 (BanglaLP workshop) | Transliteration-based perturbations of Bangla data to test LLM robustness | Method precedent in a neighbouring language. Check: how perturbations were built, tasks (MCQ?), whether spelling styles were controlled | Zia | ☐ | ☐ |
 | L07 | P2 | Language Models are not Equally Robust to Non-Canonical Tokenization across Languages. Ghosh and Jyothi. arXiv 2026 | Tokenization perturbations across many languages, including MMLU-style tasks | Tokenization is not orthography. Check: what exactly was perturbed and whether the surface string stays fixed | Younas | ☐ | ☐ |
 | L08 | P2 | Formality is Favored. Li et al. EMNLP 2024 | LLMs reported to prefer formal text with fewer spelling errors | Justifies **register control** in RULES.md. Check the exact claim and scope | Zia | ☐ | ☐ |
@@ -36,7 +36,7 @@ Column "Reader" = who reads it first (swap freely). "Opened" and "Verified" are 
 | L10 | P2 | Roman Urdu Adversarial Benchmark (RUAB). Jamil and Rafi. AbjadNLP 2026 | Safety evaluation across English, mixed and transliterated Roman Urdu; spellings reportedly normalised before testing | Supports "spelling is usually normalised away". Check the exact normalisation statement | Younas | ☐ | ☐ |
 | L11 | P2 | Does Script Matter? Evaluating LLMs for Urdu Sentiment across Nastaliq, Roman Urdu and Code-Switched Text. Zenodo preprint 2026 | Sentiment across three forms; Roman Urdu reported best | Preprint. Check: peer-review status, forms compared, spelling handling | Zia | ☐ | ☐ |
 | L12 | P2 | Improving Informally Romanized Language Identification. Benton, Gutkin, Kirov, Roark. EMNLP 2025 (arXiv 2504.21540) | Notes that Latin-script text lacks conventional spelling, causing high variability | Supports the "no standard spelling" premise. Check the exact statement | Sudais | ☐ | ☐ |
-| L13 | P2 | PURUTT: Parallel Urdu and Roman Urdu Corpus for Toxic Comments and Transliteration (Zubair et al. line of work, 2026) | Corpus of over 72,000 annotated comments in Urdu and Roman Urdu | Optional real-usage check. **Check the license first**; cut if unclear (PLAN.md cut list item 1) | Younas | ☐ | ☐ |
+| L13 | P2 | PURUTT: Parallel Urdu and Roman Urdu Corpus for Toxic Comments and Transliteration. Saeed, Khalil, Kamiran. IEEE Access 2025 (vol. 13) | Corpus of over 72,000 annotated parallel comments in Urdu and Roman Urdu | Optional real-usage check. **License verified: CC BY 4.0.** | Younas | ☑ | ☑ |
 | L14 | P2 | Indi-RomCoM. arXiv 2026 | Benchmark of romanized Indic-English code-mixed instructions across several tasks | Neighbouring romanization benchmark. Check: is Urdu included, are spelling variants controlled | Zia | ☐ | ☐ |
 | L15 | P3 | Hinglish-CSR (GitHub project, not a paper) | Retrieval robustness with language switching and phonetic spelling noise; spelling noise reported to matter little for retrievers | Neighbouring evidence. Cite only as a project, not peer-reviewed | Sudais | ☐ | ☐ |
 | L16 | P3 | "Benchmarking Language Models on Unicode, Romanized ..." (arXiv; the full title was cut off in the search result; Sinhala according to the snippet) | Script sensitivity across Unicode, Romanized and mixed script | Other-language script effect. Check task type (perplexity vs accuracy) | Younas | ☐ | ☐ |
@@ -101,9 +101,10 @@ Keep one BibTeX entry per **verified** paper in `paper/references.bib` (key form
 
 | ID | BibTeX key | Verified date | Verified by |
 |---|---|---|---|
-| L01 | | | |
-| L02 | | | |
-| ... | | | |
+| L02 | `bandarkar2024belebele` | 2026-11-16 | Younas |
+| L03 | `faheem2026umirage` | 2026-11-16 | Younas |
+| L05 | `khan2026urduidioms` | 2026-11-16 | Younas |
+| L13 | `saeed2025purutt` | 2026-11-16 | Younas |
 
 ## 6. Day 4 literature checklist (with the claims audit in `PLAN.md`)
 
@@ -136,3 +137,26 @@ Keep one BibTeX entry per **verified** paper in `paper/references.bib` (key form
 - Our difference: single romanization of reading-comprehension passages; no controlled spelling styles, no per-item answer flips, no exam-style knowledge items.
 - Allowed wording: "Belebele includes a romanized Urdu split produced by transliteration, with one romanized version per item; to our knowledge it does not vary spelling styles."
 - Not allowed: "Belebele shows Roman Urdu is worse" without naming the task and the models, or any claim about current models.
+
+### L05 Evaluating Large Language Models on Urdu Idioms (Khan and Akter, Findings of EMNLP 2026, arXiv:2510.17460)
+- Opened full text: 2026-11-16 (Younas). Venue: peer-reviewed (Findings of EMNLP 2026; arXiv:2510.17460).
+- Authors: Muhammad Farmal Khan and Mousumi Akter (TU Dortmund / RC Trustworthy Data Science and Security).
+- Dataset: 4,000 aligned idiom-sentence pairs for Urdu-to-English translation in two script forms: Native Urdu script (Perso-Arabic) and Romanized Urdu.
+- Tasks: idiomatic translation, paraphrasing, idiom span detection, and back-translation.
+- Prompting strategies: zero-shot, few-shot learning, cultural prompting, idiomatic prompting.
+- Evaluation metrics: BLEU, chrF, BERTScore, COMET, XCOMET, LASER, LaBSE, USE.
+- Script and orthography findings: models consistently performed more stably on native Perso-Arabic script; performance dropped noticeably on Romanized Urdu across models and metrics. The authors explicitly cite the lack of standardized orthography (spelling variability) in Romanized Urdu as a major obstacle to model consistency and idiom span detection.
+- Roman Urdu variation: single transliteration per idiom-sentence pair; no controlled manipulation of spelling styles.
+- Our difference: figurative language translation/detection vs our exam-style factual knowledge MCQs (UrduMMLU); they observe Roman Urdu orthographic noise as an uncontrolled obstacle, whereas our study systematically manipulates orthographic style (RU-P, RU-R, RU-X) while keeping words, syntax, and semantics identical, evaluating answer flip rates.
+- Allowed wording: "Khan and Akter (2026) report that LLMs perform worse on Romanized Urdu idiom translation than on native Perso-Arabic script, noting that unstandardized orthography impairs consistency, though they did not experimentally control spelling styles."
+- Not allowed: claiming Khan and Akter evaluated spelling flip rates or multiple-choice knowledge tasks.
+
+### L13 PURUTT (Saeed, Khalil, Kamiran, IEEE Access 2025, vol. 13, pp. 21635-21651, DOI: 10.1109/ACCESS.2025.3538411)
+- Opened full text: 2026-11-16 (Younas). Venue: peer-reviewed open access journal (IEEE Access, vol. 13).
+- Corpus: Parallel Urdu and Roman Urdu Corpus for Toxic Comments and Transliteration (PURUTT).
+- Size and composition: 72,771 annotated parallel comments in Perso-Arabic Urdu script and Roman Urdu (Latin script); GitHub repository: `hafizhassaan/Urdu-Toxic-Comments`.
+- License status: published open access under Creative Commons Attribution 4.0 International (CC BY 4.0).
+- License verdict: Permissive and clear. Allows copying, redistribution, remixing, and adaptation with attribution. The dataset does NOT need to be cut due to licensing ambiguity.
+- Role in our project: Optional real-usage check for Roman Urdu orthography (Section 6 of PLAN.md; cut list item 1 if 4-day sprint time is constrained).
+- Allowed wording: "PURUTT (Saeed et al., 2025) provides 72,771 parallel comments in Urdu and Roman Urdu under a CC BY 4.0 license."
+- Not allowed: citing PURUTT as having controlled orthographic conditions or exam MCQs.
