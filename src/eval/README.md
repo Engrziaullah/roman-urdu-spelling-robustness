@@ -85,7 +85,7 @@ The planner makes no network calls and prints `unknown` for unresolved rate
 limits:
 
 ```powershell
-python -m src.eval.plan_runs --items data/processed/items_v1.jsonl --conditions NU,RU-P,RU-R,RU-X,RT
+python -m src.eval.plan_runs --items data/processed/items_nu.jsonl --conditions NU,RU-P,RU-R,RU-X,RT
 ```
 
 After collection, inspect Gate G3 results without modifying any result files:
