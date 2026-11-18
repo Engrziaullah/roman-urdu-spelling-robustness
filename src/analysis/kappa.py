@@ -109,7 +109,7 @@ def cohen_kappa(r1, r2):
     pe = float(sum(np.mean(r1 == c) * np.mean(r2 == c) for c in cats))
 
     if pe == 1.0:
-        k = 1.0 if po == 1.0 else 0.0
+        k = np.nan
     else:
         k = (po - pe) / (1.0 - pe)
 
@@ -159,18 +159,33 @@ def evaluate_kappa_sheet(sheet_path_or_df, target_threshold=0.80):
     }
 
 
-if __name__ == "__main__":
+def main(argv=None):
     parser = argparse.ArgumentParser(description="Evaluate inter-rater agreement (Cohen's kappa) from a CSV sheet.")
-    parser.add_argument("--sheet", type=str, required=True, help="Path to filled kappa CSV sheet.")
+    parser.add_argument("sheet_path", nargs="?", help="Path to filled kappa CSV sheet.")
+    parser.add_argument("--sheet", dest="sheet_option", help="Path to filled kappa CSV sheet.")
     parser.add_argument("--threshold", type=float, default=0.80, help="Target kappa threshold (default: 0.80).")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
-    res = evaluate_kappa_sheet(args.sheet, target_threshold=args.threshold)
+    if args.sheet_path and args.sheet_option:
+        parser.error("Provide the sheet path either positionally or with --sheet, not both.")
+    sheet_path = args.sheet_path or args.sheet_option
+    if not sheet_path:
+        parser.error("A kappa sheet path is required.")
+
+    res = evaluate_kappa_sheet(sheet_path, target_threshold=args.threshold)
     print("=== Inter-Rater Agreement Evaluation ===")
     print(f"Items evaluated: {res['n_items']}")
     print(f"Raw agreement:   {res['raw_agreement']:.4f} ({res['raw_agreement'] * 100:.2f}%)")
-    print(f"Cohen's kappa:   {res['cohen_kappa']:.4f}")
-    if res["passed"]:
+    if np.isnan(res["cohen_kappa"]):
+        print("Cohen's kappa:   undefined (all ratings are identical).")
+        print("Status: UNDEFINED (no chance-corrected agreement can be estimated).")
+    elif res["passed"]:
+        print(f"Cohen's kappa:   {res['cohen_kappa']:.4f}")
         print(f"Status: PASSED (>= {res['target_threshold']:.2f})")
     else:
+        print(f"Cohen's kappa:   {res['cohen_kappa']:.4f}")
         print(f"Status: WARNING: Below target threshold ({res['target_threshold']:.2f}). Gate G2 requires rule revision.")
+
+
+if __name__ == "__main__":
+    main()
