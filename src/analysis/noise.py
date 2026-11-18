@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 
-def noise_table(df, n_boot=2000, seed=42):
+def noise_table(df, n_boot=10000, seed=42):
     """Noise subset (jin items ke repeats >1 hain) par: repeats ke beech flip rate, per model."""
     d = df.copy()
     d["ans"] = d["parsed_answer"].where(d["valid"], "INVALID")

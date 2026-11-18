@@ -20,7 +20,7 @@ from src.analysis.flips import flips_table, flip_rates_table, VARIANTS, PAIRS
 from src.analysis.noise import noise_table
 
 
-def make_accuracy_table(df, n_boot=2000, seed=42):
+def make_accuracy_table(df, n_boot=10000, seed=42):
     """Generates accuracy.csv DataFrame: model x condition."""
     return accuracy_table(df, n_boot=n_boot, seed=seed)
 
@@ -30,7 +30,7 @@ def make_flips_table(df):
     return flips_table(df, valid_only=False)
 
 
-def make_flip_rates_table(df, n_boot=2000, seed=42):
+def make_flip_rates_table(df, n_boot=10000, seed=42):
     """
     Generates flip_rates.csv DataFrame: model x variant pair with bootstrap CI
     and the model's noise baseline side-by-side.
@@ -114,7 +114,7 @@ def make_errors_table(df=None):
     return failing[cols]
 
 
-def write_all_tables(results_path, items_path, output_dir, edit_distance_path=None, seed=42, n_boot=2000):
+def write_all_tables(results_path, items_path, output_dir, edit_distance_path=None, seed=42, n_boot=10000):
     """
     Reads results and items JSONL files, computes all CONTRACTS Section 3 tables,
     and writes them as CSVs to output_dir.

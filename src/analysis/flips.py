@@ -52,7 +52,7 @@ def flips_table(df, valid_only=False):
     return wide
 
 
-def flip_rates_table(flips, n_boot=2000, seed=42):
+def flip_rates_table(flips, n_boot=10000, seed=42):
     """Per model x variant pair: flip_rate + bootstrap 95% CI."""
     cols = {f"{a} vs {b}": f"flip_{a}_{b}" for a, b in PAIRS}
     cols["any"] = "flip_any"
@@ -73,7 +73,7 @@ def flip_rates_table(flips, n_boot=2000, seed=42):
     return pd.DataFrame(rows)
 
 
-def dual_flip_rates_table(df, n_boot=2000, seed=42):
+def dual_flip_rates_table(df, n_boot=10000, seed=42):
     """
     Computes flip rates under both versions:
       (a) 'all_items': invalid treated as distinct answer category ('INVALID')

@@ -25,7 +25,7 @@ def noise_per_item(df, conditions=VARIANTS):
     return wide.reset_index().groupby(["model_slug", "item_id"])["noise"].mean().reset_index()
 
 
-def compare_to_noise(df, n_boot=2000, seed=42):
+def compare_to_noise(df, n_boot=10000, seed=42):
     """Per model: spelling flip rate vs noise flip rate, same noise-subset items, paired bootstrap."""
     f = flips_table(df)
     f["spelling"] = f["flip_pairs"] / 3          # 3 jodiyon ka average
