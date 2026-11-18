@@ -1,3 +1,16 @@
+"""Regression choices for correctness by spelling condition.
+
+Primary model: GEE logistic regression with exchangeable working correlation
+and item as the clustering unit.
+
+Secondary model: BinomialBayesMixedGLM with an item random intercept, used as
+a sensitivity analysis because statsmodels has no frequentist mixed-effects
+logistic model. It is fitted by variational Bayes. The ``converged`` flag is
+reported; a non-converged fit must be reported as such, not hidden.
+
+Choice to be confirmed by the project lead before any real data is analysed.
+"""
+
 import numpy as np
 import pandas as pd
 from statsmodels.genmod.bayes_mixed_glm import BinomialBayesMixedGLM
@@ -71,10 +84,17 @@ def gee_table(df, alpha=0.05):
 
 
 def mixed_table(df, seed=42):
-    """
-    Per model: logistic mixed model, correct ~ condition (NU = reference) + random intercept per item.
-    Variational Bayes fit: log_odds = posterior mean, sd = posterior sd.
-    Serves as a subject-specific (item random intercept) comparison against the primary GEE model.
+    """Fit the secondary BinomialBayesMixedGLM sensitivity model per model.
+
+    The binomial logistic model predicts correctness from condition (NU is the
+    reference) and includes an item random intercept. It is fitted by
+    variational Bayes because statsmodels has no frequentist mixed-effects
+    logistic model. Report the ``converged`` flag; a non-converged fit must be
+    reported as such, not hidden.
+
+    The primary model is GEE logistic regression with exchangeable working
+    correlation and item as the clustering unit. Choice to be confirmed by the
+    project lead before any real data is analysed.
     """
     main = df[df["repeat"] == 1]
     rows = []
