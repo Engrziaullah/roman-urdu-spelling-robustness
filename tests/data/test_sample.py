@@ -86,8 +86,8 @@ class TestSample(unittest.TestCase):
             first = Path(temp) / "first.jsonl"
             second = Path(temp) / "second.jsonl"
 
-            create_sample(42, 100, first)
-            create_sample(42, 100, second)
+            create_sample(42, 100, first, first.with_suffix(".md"))
+            create_sample(42, 100, second, second.with_suffix(".md"))
 
             self.assertEqual(
                 first.read_bytes(),
@@ -185,8 +185,8 @@ class TestSample(unittest.TestCase):
             first = Path(temp) / "first.jsonl"
             second = Path(temp) / "second.jsonl"
 
-            create_sample(42, 100, first)
-            create_sample(42, 100, second)
+            create_sample(42, 100, first, first.with_suffix(".md"))
+            create_sample(42, 100, second, second.with_suffix(".md"))
 
             self.assertEqual(
                 first.read_bytes(),
