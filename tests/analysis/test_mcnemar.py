@@ -1,5 +1,5 @@
 import pandas as pd
-from src.analysis.mcnemar import mcnemar_table
+from src.analysis.mcnemar import mcnemar_all_pairs_table, mcnemar_table
 
 
 def build():
@@ -21,6 +21,40 @@ def build():
     return pd.DataFrame(recs)
 
 
+def build_synthetic_multi_pair():
+    """Create labelled synthetic correctness outcomes for multiple pairs."""
+    outcomes = {
+        "m1": {
+            "NU": [True] * 10 + [False] * 2,
+            "RU-P": [True] * 8 + [False] * 4,
+            "RU-R": [True] * 7 + [False] * 5,
+            "RU-X": [True] * 6 + [False] * 6,
+            "RT": [True] * 9 + [False] * 3,
+        },
+        "m2": {
+            "NU": [True] * 6 + [False] * 6,
+            "RU-P": [True] * 5 + [False] * 7,
+            "RU-R": [True] * 4 + [False] * 8,
+            "RU-X": [True] * 3 + [False] * 9,
+            "RT": [True] * 7 + [False] * 5,
+        },
+    }
+    return pd.DataFrame(
+        [
+            {
+                "model_slug": model,
+                "item_id": f"synthetic-{item_index}",
+                "condition": condition,
+                "repeat": 1,
+                "correct": correct,
+            }
+            for model, condition_outcomes in outcomes.items()
+            for condition, values in condition_outcomes.items()
+            for item_index, correct in enumerate(values)
+        ]
+    )
+
+
 def test_known_numbers():
     t = mcnemar_table(build(), n_boot=200).set_index("model_slug")
     assert t.loc["m1", "only_NU"] == 8 and t.loc["m1", "only_RU-P"] == 2
@@ -31,3 +65,26 @@ def test_known_numbers():
     assert abs(t.loc["m1", "p_holm"] - 0.21875) < 1e-9
     assert abs(t.loc["m2", "p_holm"] - 1.0) < 1e-9
     assert not t["significant"].any()
+
+
+def test_synthetic_all_pair_holm_is_at_least_per_pair_holm():
+    """The family-wide adjustment includes every synthetic model-pair test."""
+    df = build_synthetic_multi_pair()
+    pairs = [
+        ("NU", "RU-P"),
+        ("NU", "RU-R"),
+        ("NU", "RU-X"),
+        ("NU", "RT"),
+    ]
+
+    family = mcnemar_all_pairs_table(df, pairs, n_boot=20)
+
+    assert set(family["pair"]) == {f"{a} vs {b}" for a, b in pairs}
+    for cond_a, cond_b in pairs:
+        per_pair = mcnemar_table(
+            df, cond_a=cond_a, cond_b=cond_b, n_boot=20
+        ).set_index("model_slug")
+        family_pair = family[family["pair"] == f"{cond_a} vs {cond_b}"].set_index(
+            "model_slug"
+        )
+        assert family_pair["p_holm"].ge(per_pair["p_holm"]).all()

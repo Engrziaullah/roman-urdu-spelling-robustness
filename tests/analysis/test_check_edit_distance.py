@@ -21,12 +21,38 @@ def test_valid_edit_distance_csv(tmp_path):
 def test_missing_column_is_reported(tmp_path):
     csv_path = write_csv(
         tmp_path / "edit_distance.csv",
-        "variant_pair,mean_char_edit_distance\nRU-P vs RU-R,1.5\n",
+        "variant_pair\nRU-P vs RU-R\n",
     )
 
     assert check_edit_distance_csv(csv_path) == [
-        "Missing required column: mean_normalized_edit_distance"
+        "Missing required column: mean_char_edit_distance"
     ]
+
+
+def test_normalized_column_is_optional(tmp_path):
+    csv_path = write_csv(
+        tmp_path / "edit_distance.csv",
+        "variant_pair,mean_char_edit_distance\n"
+        "RU-P vs RU-R,1.5\n"
+        "RU-P vs RU-X,2\n"
+        "RU-R vs RU-X,1\n",
+    )
+
+    assert check_edit_distance_csv(csv_path) == []
+
+
+def test_invalid_normalized_distance_is_reported(tmp_path):
+    csv_path = write_csv(
+        tmp_path / "edit_distance.csv",
+        "variant_pair,mean_char_edit_distance,mean_normalized_edit_distance\n"
+        "RU-P vs RU-R,1.5,1.2\n"
+        "RU-P vs RU-X,2,0.4\n"
+        "RU-R vs RU-X,1,0.3\n",
+    )
+
+    assert "Row 2: mean_normalized_edit_distance must be between 0 and 1." in (
+        check_edit_distance_csv(csv_path)
+    )
 
 
 def test_missing_value_is_reported(tmp_path):

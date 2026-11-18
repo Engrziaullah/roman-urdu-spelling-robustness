@@ -13,7 +13,6 @@ EXPECTED_VARIANT_PAIRS = (
 REQUIRED_COLUMNS = (
     "variant_pair",
     "mean_char_edit_distance",
-    "mean_normalized_edit_distance",
 )
 
 
@@ -57,7 +56,11 @@ def check_edit_distance_csv(path: str | Path) -> list[str]:
         else:
             seen_pairs[pair] = seen_pairs.get(pair, 0) + 1
 
-        for column in REQUIRED_COLUMNS[1:]:
+        numeric_columns = ["mean_char_edit_distance"]
+        if "mean_normalized_edit_distance" in columns:
+            numeric_columns.append("mean_normalized_edit_distance")
+
+        for column in numeric_columns:
             try:
                 value = float(row[column])
             except ValueError:

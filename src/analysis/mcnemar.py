@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 import numpy as np
 import pandas as pd
 from scipy.stats import binomtest
@@ -34,6 +36,48 @@ def mcnemar_table(df, cond_a="NU", cond_b="RU-P", n_boot=10000, seed=42, alpha=0
             "p_raw": p,
         })
     out = pd.DataFrame(rows)
+    out["p_holm"] = multipletests(out["p_raw"], method="holm")[1]
+    out["significant"] = out["p_holm"] < alpha
+    return out
+
+
+def mcnemar_all_pairs_table(
+    df: pd.DataFrame,
+    pairs: Iterable[tuple[str, str]],
+    n_boot: int = 10000,
+    seed: int = 42,
+    alpha: float = 0.05,
+) -> pd.DataFrame:
+    """Run exact McNemar tests and Holm-correct across every model-pair test.
+
+    Args:
+        df: Results in the CONTRACTS run-result format.
+        pairs: Condition pairs to compare, in ``(cond_a, cond_b)`` order.
+        n_boot: Bootstrap resamples for the paired accuracy-difference CI.
+        seed: Seed for the bootstrap interval.
+        alpha: Significance threshold for the adjusted p-values.
+
+    Returns:
+        Per-model, per-pair results with raw and family-wise Holm p-values.
+    """
+    comparisons = list(pairs)
+    if not comparisons:
+        raise ValueError("At least one condition pair is required.")
+
+    results = []
+    for cond_a, cond_b in comparisons:
+        pair_results = mcnemar_table(
+            df,
+            cond_a=cond_a,
+            cond_b=cond_b,
+            n_boot=n_boot,
+            seed=seed,
+            alpha=alpha,
+        )
+        pair_results["pair"] = f"{cond_a} vs {cond_b}"
+        results.append(pair_results)
+
+    out = pd.concat(results, ignore_index=True)
     out["p_holm"] = multipletests(out["p_raw"], method="holm")[1]
     out["significant"] = out["p_holm"] < alpha
     return out
