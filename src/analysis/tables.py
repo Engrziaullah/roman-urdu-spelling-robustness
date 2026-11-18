@@ -11,6 +11,7 @@ Reads results and items following docs/CONTRACTS.md schemas and writes:
 
 import argparse
 from pathlib import Path
+import tempfile
 import numpy as np
 import pandas as pd
 
@@ -113,7 +114,7 @@ def make_errors_table(df=None):
     return failing[cols]
 
 
-def write_all_tables(results_path, items_path, output_dir, edit_distance_path=None, seed=42):
+def write_all_tables(results_path, items_path, output_dir, edit_distance_path=None, seed=42, n_boot=2000):
     """
     Reads results and items JSONL files, computes all CONTRACTS Section 3 tables,
     and writes them as CSVs to output_dir.
@@ -124,9 +125,9 @@ def write_all_tables(results_path, items_path, output_dir, edit_distance_path=No
     df = load_data(results_path, items_path)
     
     tables = {
-        "accuracy.csv": make_accuracy_table(df, seed=seed),
+        "accuracy.csv": make_accuracy_table(df, n_boot=n_boot, seed=seed),
         "flips.csv": make_flips_table(df),
-        "flip_rates.csv": make_flip_rates_table(df, seed=seed),
+        "flip_rates.csv": make_flip_rates_table(df, n_boot=n_boot, seed=seed),
         "rt_analysis.csv": make_rt_analysis_table(df),
         "edit_distance.csv": make_edit_distance_table(edit_distance_path),
         "errors.csv": make_errors_table(df),
@@ -140,13 +141,26 @@ def write_all_tables(results_path, items_path, output_dir, edit_distance_path=No
     return tables
 
 
-if __name__ == "__main__":
+def main(argv=None):
     parser = argparse.ArgumentParser(description="Generate CONTRACTS Section 3 derived tables.")
     parser.add_argument("--results", type=str, required=True, help="Path to results JSONL file.")
     parser.add_argument("--items", type=str, required=True, help="Path to items JSONL file.")
-    parser.add_argument("--out", type=str, required=True, help="Output directory for generated CSV tables.")
+    parser.add_argument("--out", type=str, default=None, help="Output directory (defaults to a temporary directory).")
     parser.add_argument("--edit-distance", type=str, default=None, help="Optional path to edit distance CSV from Role A.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for bootstrapping.")
-    args = parser.parse_args()
+    parser.add_argument("--n-boot", type=int, default=10000, help="Bootstrap resamples (default: 10000).")
+    args = parser.parse_args(argv)
     
-    write_all_tables(args.results, args.items, args.out, edit_distance_path=args.edit_distance, seed=args.seed)
+    output_dir = args.out or tempfile.mkdtemp(prefix="roman-urdu-tables-")
+    write_all_tables(
+        args.results,
+        args.items,
+        output_dir,
+        edit_distance_path=args.edit_distance,
+        seed=args.seed,
+        n_boot=args.n_boot,
+    )
+
+
+if __name__ == "__main__":
+    main()

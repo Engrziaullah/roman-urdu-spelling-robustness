@@ -11,6 +11,7 @@ from src.analysis.tables import (
     make_rt_analysis_table,
     make_edit_distance_table,
     make_errors_table,
+    main,
     write_all_tables,
 )
 
@@ -77,3 +78,24 @@ def test_write_all_tables(synth_df, tmp_path):
         assert file_path.stat().st_size > 0, f"Empty output table: {filename}"
         dataframe = pd.read_csv(file_path)
         assert len(dataframe) >= 0
+
+
+def test_cli_parses_small_n_boot(monkeypatch, tmp_path):
+    import src.analysis.tables as tables_module
+
+    calls = {}
+
+    def fake_write_all_tables(results_path, items_path, output_dir, **kwargs):
+        calls["args"] = (results_path, items_path, output_dir)
+        calls["kwargs"] = kwargs
+
+    monkeypatch.setattr(tables_module, "write_all_tables", fake_write_all_tables)
+    main([
+        "--results", SYNTH_RESULTS,
+        "--items", SYNTH_ITEMS,
+        "--out", str(tmp_path),
+        "--n-boot", "25",
+    ])
+
+    assert calls["args"] == (SYNTH_RESULTS, SYNTH_ITEMS, str(tmp_path))
+    assert calls["kwargs"]["n_boot"] == 25
