@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -128,6 +130,41 @@ def test_resume_skips_already_recorded_request(tmp_path: Path) -> None:
     assert provider.calls == 1
 
 
+def test_resume_retries_failed_rows_and_latest_attempt_becomes_authoritative(
+    tmp_path: Path,
+) -> None:
+    class FailOnceProvider:
+        calls = 0
+
+        def complete(self, prompt, model_cfg, settings):
+            self.calls += 1
+            if self.calls == 1:
+                raise ProviderError("temporary failure", retryable=False)
+            return "A", 0.01, None
+
+    provider = FailOnceProvider()
+    first = _run(tmp_path, provider=provider, max_items=1)
+    second = _run(tmp_path, provider=provider, max_items=1)
+    third = _run(tmp_path, provider=provider, max_items=1)
+    output = (
+        tmp_path
+        / "temporary-results"
+        / "fixture"
+        / "2026-11-16_nu_r1.jsonl"
+    )
+    rows = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+
+    assert first.errors == 1
+    assert second.calls_made == 1
+    assert second.cache_hits == 0
+    assert third.calls_made == 0
+    assert third.cache_hits == 1
+    assert provider.calls == 2
+    assert len(rows) == 2
+    assert rows[0]["error"] == "temporary failure"
+    assert rows[1]["error"] is None
+
+
 def test_non_nu_real_run_requires_frozen_marker(tmp_path: Path) -> None:
     with pytest.raises(RunInputError, match="FROZEN.md"):
         run_pipeline(
@@ -139,6 +176,67 @@ def test_non_nu_real_run_requires_frozen_marker(tmp_path: Path) -> None:
             conditions=("RU-P",),
             mock=False,
             frozen_marker=tmp_path / "data" / "processed" / "FROZEN.md",
+            run_log_path=tmp_path / "RUN_LOG.md",
+        )
+
+
+def test_non_nu_frozen_hash_normalizes_crlf_and_utf8(tmp_path: Path) -> None:
+    item = read_items(MOCK_ITEMS)[0]
+    item["condition"] = "RU-P"
+    serialized = json.dumps(item, ensure_ascii=False) + "\n"
+    items_path = tmp_path / "items_v1.jsonl"
+    items_path.write_bytes(serialized.replace("\n", "\r\n").encode("utf-8"))
+    expected_hash = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    marker = tmp_path / "FROZEN.md"
+    marker.write_text(
+        f"Freeze approved.\nITEMS_V1.JSONL SHA256: {expected_hash.upper()}\n",
+        encoding="utf-8",
+    )
+
+    summary = run_pipeline(
+        items_path=items_path,
+        model_config=_model("groq"),
+        settings=_settings(),
+        provider=MockProvider(),
+        output_dir=tmp_path / "real-results",
+        conditions=("RU-P",),
+        mock=False,
+        frozen_marker=marker,
+        run_log_path=tmp_path / "RUN_LOG.md",
+        run_date="2026-11-16",
+        max_items=1,
+        sleep=lambda _seconds: None,
+    )
+
+    assert summary.calls_made == 1
+
+
+def test_non_nu_frozen_hash_mismatch_reports_expected_and_actual(
+    tmp_path: Path,
+) -> None:
+    item = read_items(MOCK_ITEMS)[0]
+    item["condition"] = "RU-P"
+    items_path = tmp_path / "items_v1.jsonl"
+    items_path.write_text(json.dumps(item) + "\n", encoding="utf-8")
+    marker = tmp_path / "FROZEN.md"
+    expected_hash = "0" * 64
+    marker.write_text(f"items_v1.jsonl sha256: {expected_hash}\n", encoding="utf-8")
+    normalized = items_path.read_bytes().replace(b"\r\n", b"\n")
+    actual_hash = hashlib.sha256(normalized).hexdigest()
+
+    with pytest.raises(
+        RunInputError,
+        match=f"expected hash: {expected_hash}, actual hash: {actual_hash}",
+    ):
+        run_pipeline(
+            items_path=items_path,
+            model_config=_model("groq"),
+            settings=_settings(),
+            provider=MockProvider(),
+            output_dir=tmp_path / "real-results",
+            conditions=("RU-P",),
+            mock=False,
+            frozen_marker=marker,
             run_log_path=tmp_path / "RUN_LOG.md",
         )
 
@@ -227,6 +325,96 @@ def test_runner_stops_after_consecutive_final_failures(tmp_path: Path) -> None:
     assert summary.processed_requests == 2
     assert summary.invalid_rate == 1
     assert summary.stopped_after_consecutive_failures is True
+
+
+def test_daily_quota_stops_before_an_unattempted_request_and_resumes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class CountingProvider:
+        calls = 0
+
+        def complete(self, prompt, model_cfg, settings):
+            self.calls += 1
+            return "A", 0.01, None
+
+    provider = CountingProvider()
+    model = replace(_model("groq"), requests_per_day=1)
+    output_dir = tmp_path / "real-results"
+    run_log_path = tmp_path / "real-RUN_LOG.md"
+    run_date = datetime.now(timezone.utc).date().isoformat()
+    first = _run(
+        tmp_path,
+        provider=provider,
+        model_config=model,
+        mock=False,
+        output_dir=output_dir,
+        run_log_path=run_log_path,
+        run_date=run_date,
+        max_items=2,
+    )
+    second = _run(
+        tmp_path,
+        provider=provider,
+        model_config=model,
+        mock=False,
+        output_dir=output_dir,
+        run_log_path=run_log_path,
+        run_date=run_date,
+        max_items=2,
+    )
+    next_day = (
+        datetime.now(timezone.utc).date() + timedelta(days=1)
+    ).isoformat()
+    monkeypatch.setattr(
+        "src.eval.run._utc_now",
+        lambda: f"{next_day}T00:00:00Z",
+    )
+    third = _run(
+        tmp_path,
+        provider=provider,
+        model_config=model,
+        mock=False,
+        output_dir=output_dir,
+        run_log_path=run_log_path,
+        run_date=next_day,
+        max_items=2,
+    )
+
+    assert first.calls_made == 1
+    assert first.stopped_after_daily_quota is True
+    assert second.calls_made == 0
+    assert second.cache_hits == 1
+    assert second.stopped_after_daily_quota is True
+    assert third.calls_made == 1
+    assert third.cache_hits == 1
+    assert third.stopped_after_daily_quota is False
+    assert provider.calls == 2
+
+
+def test_http_429_stops_the_run_without_retrying_or_looping(tmp_path: Path) -> None:
+    class RateLimitedProvider:
+        calls = 0
+
+        def complete(self, prompt, model_cfg, settings):
+            self.calls += 1
+            raise ProviderError("rate limited", retryable=True, status_code=429)
+
+    provider = RateLimitedProvider()
+    summary = _run(
+        tmp_path,
+        provider=provider,
+        settings=_settings(max_retries=3),
+        mock=False,
+        model_config=_model("groq"),
+        output_dir=tmp_path / "real-results",
+        run_log_path=tmp_path / "real-RUN_LOG.md",
+    )
+
+    assert provider.calls == 1
+    assert summary.calls_made == 1
+    assert summary.errors == 1
+    assert summary.stopped_after_rate_limit is True
 
 
 def test_cli_mock_run_uses_fixture_and_requires_temporary_output(

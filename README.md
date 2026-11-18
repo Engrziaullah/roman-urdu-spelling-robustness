@@ -53,40 +53,55 @@ Roles rotate in Phase 3, where everyone writes a paper section. Shared files (`R
 ## 5. Repository layout
 
 ```
-roman-urdu-spelling-robustnes/
+roman-urdu-spelling-robustness/
 ├── README.md
-├── docs/
-│   ├── PLAN.md            # 3-phase, 4-day plan, gates, task split
-│   ├── CONTRACTS.md       # data and result schemas (the interface between A, B, C)
-│   ├── RULES.md           # spelling operation rules (Phase 1)
-│   ├── LITERATURE.md      # verified literature table (Phase 1)
-│   └── prompts/           # Antigravity session and Day 1 task prompts
-├── configs/               # models, prompt template, seed
-├── data/
-│   ├── raw/               # UrduMMLU download (not committed)
-│   ├── interim/           # drafts, before manual verification
-│   └── processed/         # FROZEN dataset (committed, hash recorded)
-├── src/
-│   ├── data/              # sampling, variant generation, edit distance
-│   ├── eval/              # API clients, prompt, parser, runner
-│   └── analysis/          # flip rates, McNemar, mixed-effects, plots
-├── annotations/           # manual verification sheets, kappa inputs
-├── results/
-│   ├── raw/               # one JSONL per model/run (committed)
-│   ├── tables/
-│   └── figures/
-├── paper/
 ├── .env.example
-└── requirements.txt
+├── .gitignore
+├── requirements.txt
+├── configs/
+│   ├── config.yaml
+│   ├── models.yaml
+│   └── prompt.txt
+├── docs/
+│   ├── AGENTS.md
+│   ├── CONTRACTS.md
+│   ├── LITERATURE.md
+│   ├── PLAN.md
+│   ├── RULES.md
+│   └── prompts/
+├── data/
+│   ├── raw/
+│   │   ├── stats.json
+│   │   └── urdummlu.json
+│   ├── interim/
+│   └── processed/
+│       └── items_nu.jsonl
+├── src/
+│   ├── analysis/
+│   ├── data/
+│   └── eval/
+├── tests/
+│   ├── analysis/
+│   ├── data/
+│   ├── eval/
+│   └── fixtures/
+├── results/
+│   └── RUN_LOG.md
 ```
 
-Folders marked as phase outputs do not exist until the owner creates them.
+`data/raw/` currently contains committed UrduMMLU files (`urdummlu.json` and
+`stats.json`); the earlier "not committed" note was inaccurate. The team still
+needs to decide how these source files should be handled. `data/processed/`
+currently contains `items_nu.jsonl`; `FROZEN.md` is not present yet.
+`src/data/rules/`, `annotations/`, `paper/`, and the `results/raw/`,
+`results/tables/`, and `results/figures/` output directories are not present in
+the current tree.
 
 ## 6. Setup
 
 ```bash
-git clone https://github.com/Engrziaullah/roman-urdu-spelling-robustnes.git
-cd roman-urdu-spelling-robustnes
+git clone https://github.com/Engrziaullah/roman-urdu-spelling-robustness.git
+cd roman-urdu-spelling-robustness
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env    # then add YOUR OWN API keys; never commit .env

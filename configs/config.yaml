@@ -24,3 +24,38 @@ paths:
   results_raw: results/raw
   run_log: results/RUN_LOG.md
   prompt_template: configs/prompt.txt
+
+noise_subset:
+  n_items: 30
+  repeats: 3
+  item_ids:
+  - umm-0004
+  - umm-0006
+  - umm-0007
+  - umm-0008
+  - umm-0012
+  - umm-0027
+  - umm-0028
+  - umm-0032
+  - umm-0036
+  - umm-0041
+  - umm-0050
+  - umm-0055
+  - umm-0063
+  - umm-0068
+  - umm-0070
+  - umm-0071
+  - umm-0073
+  - umm-0074
+  - umm-0076
+  - umm-0086
+  - umm-0089
+  - umm-0090
+  - umm-0110
+  - umm-0134
+  - umm-0137
+  - umm-0140
+  - umm-0144
+  - umm-0163
+  - umm-0172
+  - umm-0174

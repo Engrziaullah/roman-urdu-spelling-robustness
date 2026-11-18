@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
 import tempfile
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Sequence
@@ -17,6 +18,7 @@ from src.eval.config import (
     ConfigError,
     ModelConfig,
     RunSettings,
+    configured_model_slugs,
     load_model_config,
     load_run_settings,
 )
@@ -28,7 +30,7 @@ from src.eval.providers import (
     ProviderError,
     create_provider,
 )
-from src.eval.runlog import append_result, append_run_summary
+from src.eval.runlog import append_result, append_run_summary, read_daily_call_count
 
 
 ITEM_FIELDS = {
@@ -65,6 +67,8 @@ class RunSummary:
     latency_min_s: float | None
     latency_max_s: float | None
     stopped_after_consecutive_failures: bool
+    stopped_after_daily_quota: bool
+    stopped_after_rate_limit: bool
     schema_problems: tuple[str, ...] = ()
 
 
@@ -172,11 +176,15 @@ def read_items(items_path: str | Path, *, mock: bool = False) -> list[dict[str, 
 
 
 def _load_existing_keys(model_output_dir: Path) -> set[tuple[str, str, str, int]]:
-    keys: set[tuple[str, str, str, int]] = set()
+    latest_rows: dict[
+        tuple[str, str, str, int],
+        tuple[tuple[int, int, str], bool],
+    ] = {}
     if not model_output_dir.exists():
-        return keys
+        return set()
     for result_file in sorted(model_output_dir.glob("*.jsonl")):
         try:
+            file_order = result_file.stat().st_mtime_ns
             with result_file.open(encoding="utf-8") as file:
                 for line_number, line in enumerate(file, start=1):
                     if not line.strip():
@@ -189,22 +197,66 @@ def _load_existing_keys(model_output_dir: Path) -> set[tuple[str, str, str, int]
                         ) from exc
                     if not isinstance(row, dict) or not all(
                         name in row
-                        for name in ("model_slug", "item_id", "condition", "repeat")
+                        for name in (
+                            "model_slug",
+                            "item_id",
+                            "condition",
+                            "repeat",
+                            "error",
+                        )
                     ):
                         raise RunInputError(
-                            f"Cached row lacks cache-key fields at {result_file}:{line_number}."
+                            f"Cached row lacks cache-key/error fields at "
+                            f"{result_file}:{line_number}."
                         )
-                    keys.add(
-                        (
-                            row["model_slug"],
-                            row["item_id"],
-                            row["condition"],
-                            row["repeat"],
-                        )
+                    key = (
+                        row["model_slug"],
+                        row["item_id"],
+                        row["condition"],
+                        row["repeat"],
                     )
+                    order = (file_order, line_number, str(result_file))
+                    if key not in latest_rows or order > latest_rows[key][0]:
+                        latest_rows[key] = (order, row["error"] is None)
         except OSError as exc:
             raise RunInputError(f"Cannot read cached results {result_file}: {exc}") from exc
-    return keys
+    return {key for key, (_order, finished) in latest_rows.items() if finished}
+
+
+def _normalized_items_sha256(items_path: str | Path) -> str:
+    """Hash UTF-8 item text after normalizing CRLF newlines to LF."""
+    path = Path(items_path)
+    try:
+        with path.open(encoding="utf-8", newline="") as file:
+            normalized = file.read().replace("\r\n", "\n")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise RunInputError(f"Cannot hash UTF-8 items file {path}: {exc}") from exc
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _verify_frozen_items_hash(items_path: str | Path, marker_path: Path) -> None:
+    """Require the marker's items_v1.jsonl SHA-256 to match the supplied items file."""
+    actual = _normalized_items_sha256(items_path)
+    if not marker_path.is_file():
+        raise RunInputError(
+            f"Non-NU real runs require {marker_path} with an "
+            f"'items_v1.jsonl sha256: <64 hex chars>' line; "
+            f"expected hash: <missing>, actual hash: {actual}."
+        )
+    try:
+        marker_text = marker_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise RunInputError(f"Cannot read frozen marker {marker_path}: {exc}") from exc
+    match = re.search(
+        r"(?im)^\s*items_v1\.jsonl\s+sha256:\s*([0-9a-f]{64})\s*$",
+        marker_text,
+    )
+    expected = match.group(1).lower() if match else "<missing>"
+    if expected != actual:
+        raise RunInputError(
+            f"Frozen item hash mismatch in {marker_path}: "
+            f"expected hash: {expected}, actual hash: {actual}."
+        )
 
 
 def _utc_now() -> str:
@@ -248,6 +300,7 @@ def _select_items(
     items: list[dict[str, Any]],
     conditions: Sequence[str],
     max_items: int | None,
+    item_ids: Sequence[str] | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     item_order: list[str] = []
     by_condition: dict[str, dict[str, dict[str, Any]]] = {}
@@ -256,6 +309,16 @@ def _select_items(
         if item_id not in item_order:
             item_order.append(item_id)
         by_condition.setdefault(item["condition"], {})[item_id] = item
+    if item_ids is not None:
+        if len(item_ids) != len(set(item_ids)):
+            raise ValueError("item_ids must not contain duplicates.")
+        known_ids = set(item_order)
+        unknown_ids = [item_id for item_id in item_ids if item_id not in known_ids]
+        if unknown_ids:
+            raise RunInputError(
+                f"Requested item_id {unknown_ids[0]!r} is missing from the items file."
+            )
+        item_order = list(item_ids)
     if max_items is not None:
         if isinstance(max_items, bool) or max_items <= 0:
             raise ValueError("max_items must be a positive integer.")
@@ -288,6 +351,7 @@ def run_pipeline(
     frozen_marker: str | Path | None = None,
     run_log_path: str | Path | None = None,
     run_date: str | None = None,
+    item_ids: Sequence[str] | None = None,
     sleep: Callable[[float], None] = time.sleep,
     monotonic: Callable[[], float] = time.monotonic,
 ) -> RunSummary:
@@ -319,13 +383,10 @@ def run_pipeline(
             / "processed"
             / "FROZEN.md"
         )
-        if not marker.is_file():
-            raise RunInputError(
-                f"Non-NU real runs are blocked until {marker} exists."
-            )
+        _verify_frozen_items_hash(items_path, marker)
 
     items = read_items(items_path, mock=mock)
-    selected = _select_items(items, conditions, max_items)
+    selected = _select_items(items, conditions, max_items, item_ids)
     calls_made = 0
     cache_hits = 0
     errors = 0
@@ -342,6 +403,13 @@ def run_pipeline(
         monotonic=monotonic,
     )
     stop_after_failures = False
+    stop_after_daily_quota = False
+    stop_after_rate_limit = False
+    daily_calls_made = (
+        read_daily_call_count(run_log_path, model_config.slug, run_date_text)
+        if not mock and run_log_path is not None
+        else 0
+    )
 
     for repeat in range(1, repeats + 1):
         run_id = f"{run_date_text}_{purpose}_r{repeat}"
@@ -359,6 +427,9 @@ def run_pipeline(
                     cache_hits += 1
                     run_cache_hits += 1
                     continue
+                if not mock and daily_calls_made >= model_config.requests_per_day:
+                    stop_after_daily_quota = True
+                    break
                 prompt, prompt_hash = build_prompt(
                     item, condition, settings.paths["prompt_template"]
                 )
@@ -368,12 +439,19 @@ def run_pipeline(
                 error: str | None = None
                 latency_s = 0.0
                 attempt = 0
+                attempted = False
                 while True:
+                    if not mock and daily_calls_made >= model_config.requests_per_day:
+                        stop_after_daily_quota = True
+                        break
                     if not mock:
                         limiter.wait()
                     started = time.perf_counter()
+                    attempted = True
                     calls_made += 1
                     run_calls += 1
+                    if not mock:
+                        daily_calls_made += 1
                     try:
                         raw_output, provider_latency, _returned_model = provider.complete(
                             prompt, model_config, settings
@@ -386,16 +464,26 @@ def run_pipeline(
                         parsed_answer, valid = parse_answer(
                             raw_output, [chr(ord("A") + index) for index in range(len(item["options"]))]
                         )
+                        error = None
                         break
                     except ProviderError as exc:
                         latency_s = max(0.0, time.perf_counter() - started)
                         if exc.retryable and attempt < settings.max_retries:
+                            if exc.status_code == 429:
+                                error = str(exc)
+                                stop_after_rate_limit = True
+                                break
+                            error = str(exc)
                             sleep(settings.backoff_initial_s * (2**attempt))
                             attempt += 1
                             continue
                         error = str(exc)
+                        if exc.status_code == 429:
+                            stop_after_rate_limit = True
                         break
 
+                if not attempted:
+                    break
                 row = {
                     "run_id": run_id,
                     "model_slug": model_config.slug,
@@ -430,10 +518,23 @@ def run_pipeline(
                 if consecutive_failures >= settings.max_consecutive_failures:
                     stop_after_failures = True
                     break
+                if stop_after_daily_quota or stop_after_rate_limit:
+                    break
             if stop_after_failures:
+                break
+            if stop_after_daily_quota or stop_after_rate_limit:
                 break
 
         if not mock and run_log_path is not None:
+            stop_reason = (
+                "rate_limit"
+                if stop_after_rate_limit
+                else "daily_quota"
+                if stop_after_daily_quota
+                else "consecutive_failures"
+                if stop_after_failures
+                else "complete"
+            )
             append_run_summary(
                 run_log_path,
                 date_utc=_utc_now(),
@@ -449,8 +550,9 @@ def run_pipeline(
                 ),
                 latency_min_s=min(run_latencies) if run_latencies else None,
                 latency_max_s=max(run_latencies) if run_latencies else None,
+                stop_reason=stop_reason,
             )
-        if stop_after_failures:
+        if stop_after_failures or stop_after_daily_quota or stop_after_rate_limit:
             break
 
     return RunSummary(
@@ -466,6 +568,8 @@ def run_pipeline(
         latency_min_s=min(latencies) if latencies else None,
         latency_max_s=max(latencies) if latencies else None,
         stopped_after_consecutive_failures=stop_after_failures,
+        stopped_after_daily_quota=stop_after_daily_quota,
+        stopped_after_rate_limit=stop_after_rate_limit,
     )
 
 
@@ -493,8 +597,15 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--items", required=True, help="CONTRACTS item JSONL path")
     parser.add_argument("--conditions", default="NU", help="Comma-separated conditions")
     parser.add_argument("--repeats", type=int, default=1)
-    parser.add_argument("--purpose", default="nu")
+    parser.add_argument("--purpose")
     parser.add_argument("--max-items", type=int)
+    parser.add_argument("--config", default="configs/config.yaml")
+    parser.add_argument("--models", default="configs/models.yaml")
+    parser.add_argument(
+        "--noise-subset",
+        action="store_true",
+        help="Use configured noise-subset item IDs and repeat count.",
+    )
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--output-dir", help="Output root; required for --mock")
@@ -516,6 +627,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.repeats < 1:
         parser.error("--repeats must be a positive integer.")
     try:
+        item_ids: Sequence[str] | None = None
+        purpose = args.purpose or ("noise" if args.noise_subset else "nu")
+        repeats = args.repeats
+        if args.noise_subset and args.max_items is not None:
+            parser.error("--max-items cannot be combined with --noise-subset.")
+
         if args.mock:
             if not args.output_dir:
                 parser.error("--output-dir is required with --mock; use a temporary directory.")
@@ -529,28 +646,57 @@ def main(argv: Sequence[str] | None = None) -> int:
                 requests_per_day=60,
                 checked_on="mock",
             )
-            provider: Provider = MockProvider()
+            provider: Provider | None = MockProvider()
             mock = True
         else:
-            settings = load_run_settings(repo_root / "configs" / "config.yaml")
-            model_config = load_model_config(
-                repo_root / "configs" / "models.yaml",
-                args.model_slug,
-                load_api_key=not args.dry_run,
-            )
-            provider = create_provider(model_config.provider)
+            settings = load_run_settings(args.config)
+            models_path = Path(args.models)
+            if args.dry_run:
+                if args.model_slug not in configured_model_slugs(models_path):
+                    raise ConfigError(
+                        f"Unknown model slug '{args.model_slug}' in {models_path}."
+                    )
+                model_config = None
+                provider = None
+            else:
+                model_config = load_model_config(
+                    models_path,
+                    args.model_slug,
+                )
+                provider = create_provider(model_config.provider)
             mock = False
+
+        if args.noise_subset:
+            if args.mock:
+                configured_settings = load_run_settings(args.config)
+                settings = replace(
+                    configured_settings,
+                    paths={
+                        **configured_settings.paths,
+                        "prompt_template": (
+                            repo_root / "tests" / "fixtures" / "mock_prompt.txt"
+                        ),
+                    },
+                )
+            noise_subset = settings.noise_subset
+            if noise_subset is None or len(noise_subset.item_ids) != noise_subset.n_items:
+                raise ConfigError(
+                    "A complete noise_subset block is required in configs/config.yaml."
+                )
+            item_ids = noise_subset.item_ids
+            repeats = noise_subset.repeats
 
         if args.dry_run:
             items = read_items(args.items, mock=args.mock)
-            selected = _select_items(items, conditions, args.max_items)
-            request_count = sum(len(rows) for rows in selected.values()) * args.repeats
+            selected = _select_items(items, conditions, args.max_items, item_ids)
+            request_count = sum(len(rows) for rows in selected.values()) * repeats
             print(
                 json.dumps(
                     {
-                        "model_slug": model_config.slug,
+                        "model_slug": args.model_slug,
                         "conditions": list(conditions),
                         "requests_planned": request_count,
+                        "repeats": repeats,
                         "mock": args.mock,
                     },
                     ensure_ascii=False,
@@ -559,6 +705,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         output_dir = Path(args.output_dir) if args.output_dir else settings.paths["results_raw"]
+        if model_config is None or provider is None:
+            raise ConfigError("A model configuration and provider are required to run.")
         summary = run_pipeline(
             items_path=args.items,
             model_config=model_config,
@@ -566,11 +714,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             provider=provider,
             output_dir=output_dir,
             conditions=conditions,
-            repeats=args.repeats,
-            purpose=args.purpose,
+            repeats=repeats,
+            purpose=purpose,
             max_items=args.max_items,
             mock=mock,
             run_log_path=settings.paths["run_log"],
+            item_ids=item_ids,
         )
         print(json.dumps(asdict(summary), ensure_ascii=False))
         return 0
