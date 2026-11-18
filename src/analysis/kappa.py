@@ -28,7 +28,7 @@ def fleiss_kappa(counts):
     return (p_bar - p_e) / (1 - p_e)
 
 
-def kappa_with_ci(counts, item_ids, n_boot=2000, seed=42):
+def kappa_with_ci(counts, item_ids, n_boot=10000, seed=42):
     """Point estimate + bootstrap CI. Bootstrap items par hota hai (ek item ke units saath rehte hain)."""
     counts = np.asarray(counts, dtype=float)
     n = counts[0].sum()
@@ -56,7 +56,7 @@ def kappa_with_ci(counts, item_ids, n_boot=2000, seed=42):
     return k_hat, np.percentile(boot, 2.5), np.percentile(boot, 97.5)
 
 
-def kappa_table(df, n_boot=2000, seed=42):
+def kappa_table(df, n_boot=10000, seed=42):
     """Per model: kappa across spelling variants (repeat 1) aur kappa across repeats (noise subset)."""
     d = df[df["condition"].isin(VARIANTS)].copy()
     d["ans"] = d["parsed_answer"].where(d["valid"], "INVALID")

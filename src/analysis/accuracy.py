@@ -14,7 +14,7 @@ def load_data(results_path, items_path):
     return df
 
 
-def accuracy_table(df, n_boot=2000, seed=42):
+def accuracy_table(df, n_boot=10000, seed=42):
     """Per model x condition: n, accuracy, ci_low, ci_high, invalid_rate (main run only, repeat==1)."""
     main = df[df["repeat"] == 1]
     rows = []

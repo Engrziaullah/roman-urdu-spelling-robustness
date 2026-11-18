@@ -45,7 +45,7 @@ def test_ci_function_matches_point_estimate():
         base = rng.choice(list("ABCD"))
         rows.append([base if rng.random() < 0.7 else rng.choice(list("ABCD")) for _ in range(3)])
     counts, _ = counts_from_wide(pd.DataFrame(rows))
-    k, lo, hi = kappa_with_ci(counts, np.arange(200))
+    k, lo, hi = kappa_with_ci(counts, np.arange(200), n_boot=200)
     assert abs(k - fleiss_kappa(counts)) < 1e-12
     assert lo <= hi
 

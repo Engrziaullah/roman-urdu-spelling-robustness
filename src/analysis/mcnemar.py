@@ -4,7 +4,7 @@ from scipy.stats import binomtest
 from statsmodels.stats.multitest import multipletests
 
 
-def mcnemar_table(df, cond_a="NU", cond_b="RU-P", n_boot=2000, seed=42, alpha=0.05):
+def mcnemar_table(df, cond_a="NU", cond_b="RU-P", n_boot=10000, seed=42, alpha=0.05):
     """Per model: exact McNemar (cond_a vs cond_b) + accuracy farq + CI. Holm across models."""
     main = df[(df["repeat"] == 1) & (df["condition"].isin([cond_a, cond_b]))]
     rows = []

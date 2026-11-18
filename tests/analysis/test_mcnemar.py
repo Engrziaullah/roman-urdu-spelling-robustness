@@ -22,7 +22,7 @@ def build():
 
 
 def test_known_numbers():
-    t = mcnemar_table(build()).set_index("model_slug")
+    t = mcnemar_table(build(), n_boot=200).set_index("model_slug")
     assert t.loc["m1", "only_NU"] == 8 and t.loc["m1", "only_RU-P"] == 2
     assert abs(t.loc["m1", "p_raw"] - 0.109375) < 1e-9     # exact binomial: 112/1024
     assert abs(t.loc["m1", "acc_diff"] - 0.6) < 1e-9
