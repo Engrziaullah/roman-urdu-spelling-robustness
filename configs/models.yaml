@@ -16,13 +16,14 @@
 evaluated_models:
   # Proposed earlier in the repo: Groq with llama-3.1-8b-instant. Check that this model is still
   # listed and free on Groq's current model/limits pages before using it; the team must approve it.
+  # TPM 8000 from header; RPM and tokens/day unverified: confirm in console
   - slug: model-1
     provider: groq
-    model_string: TODO              # exact string from Groq's current model list
+    model_string: qwen/qwen3.8-27b
     api_key_env: GROQ_API_KEY
-    requests_per_minute: TODO       # integer, from the provider's limits page
-    requests_per_day: TODO          # integer, from the provider's limits page
-    checked_on: TODO                # YYYY-MM-DD
+    requests_per_minute: 20         # self-imposed throttle, NOT the provider's published RPM
+    requests_per_day: 1000          # from x-ratelimit-limit-requests header, 2026-11-19
+    checked_on: 2026-11-19
 
   - slug: model-2
     provider: gemini
@@ -48,8 +49,8 @@ evaluated_models:
 #  - It must NOT be the same model as any entry in evaluated_models (different provider or different model).
 #  - Record the exact model string and the date of the limits you checked.
 helper:
-  provider: TODO                    # gemini | groq | openrouter
-  model_string: TODO
-  api_key_env: TODO
-  checked_on: TODO
-  note: Must not be one of the evaluated models.
+  provider: groq
+  model_string: openai/gpt-oss-120b
+  api_key_env: GROQ_API_KEY
+  checked_on: 2026-11-19
+  note: Must not be one of the evaluated models. # reasoning model; set a large max output
