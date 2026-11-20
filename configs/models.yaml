@@ -24,6 +24,9 @@ evaluated_models:
     requests_per_minute: 20         # self-imposed throttle, NOT the provider's published RPM
     requests_per_day: 1000          # from x-ratelimit-limit-requests header, 2026-11-19
     checked_on: 2026-11-19
+    # Groq model docs (2026-11-20): max output 16,384; reasoning_effort=low supported.
+    max_output_tokens: 4096
+    reasoning_effort: low
 
   - slug: model-2
     provider: gemini
@@ -53,4 +56,7 @@ helper:
   model_string: openai/gpt-oss-120b
   api_key_env: GROQ_API_KEY
   checked_on: 2026-11-19
+  # Groq model docs (2026-11-20): max output 65,536; reasoning_effort=low supported.
+  max_output_tokens: 4096
+  reasoning_effort: low
   note: Must not be one of the evaluated models. # reasoning model; set a large max output
