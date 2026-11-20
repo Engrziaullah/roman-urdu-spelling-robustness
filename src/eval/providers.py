@@ -145,10 +145,17 @@ class OpenAICompatibleProvider:
             "messages": [{"role": "user", "content": prompt}],
             "temperature": settings.temperature,
         }
+        max_output_tokens = (
+            model_cfg.max_output_tokens
+            if model_cfg.max_output_tokens is not None
+            else settings.max_output_tokens
+        )
         if model_cfg.provider == "groq":
-            payload["max_completion_tokens"] = settings.max_output_tokens
+            payload["max_completion_tokens"] = max_output_tokens
+            if model_cfg.reasoning_effort is not None:
+                payload["reasoning_effort"] = model_cfg.reasoning_effort
         else:
-            payload["max_tokens"] = settings.max_output_tokens
+            payload["max_tokens"] = max_output_tokens
         started = time.perf_counter()
         response = _post_json(
             self.endpoint,

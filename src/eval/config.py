@@ -47,6 +47,8 @@ class ModelConfig:
     requests_per_minute: int
     requests_per_day: int
     checked_on: str
+    max_output_tokens: int | None = None
+    reasoning_effort: str | None = None
     api_key: str | None = field(default=None, repr=False)
 
 
@@ -229,6 +231,26 @@ def load_model_config(
     requests_per_day = _positive_int(
         _required(model, "requests_per_day", path), "requests_per_day", path
     )
+    max_output_tokens_value = model.get("max_output_tokens")
+    max_output_tokens = (
+        None
+        if max_output_tokens_value is None
+        else _positive_int(max_output_tokens_value, "max_output_tokens", path)
+    )
+    reasoning_effort_value = model.get("reasoning_effort")
+    if reasoning_effort_value is not None:
+        if (
+            not isinstance(reasoning_effort_value, str)
+            or reasoning_effort_value not in {"none", "default", "low", "medium", "high"}
+        ):
+            raise ConfigError(
+                f"Field 'reasoning_effort' must be one of none, default, low, "
+                f"medium, or high in {path}."
+            )
+        if required_strings["provider"].lower() != "groq":
+            raise ConfigError(
+                f"Field 'reasoning_effort' is supported only for Groq models in {path}."
+            )
 
     api_key: str | None = None
     if load_api_key:
@@ -249,6 +271,8 @@ def load_model_config(
         requests_per_minute=requests_per_minute,
         requests_per_day=requests_per_day,
         checked_on=required_strings["checked_on"],
+        max_output_tokens=max_output_tokens,
+        reasoning_effort=reasoning_effort_value,
         api_key=api_key,
     )
 
