@@ -1,51 +1,313 @@
+"""
+Spelling flip rate vs noise baseline comparison.
+
+compare_to_noise() reports, per model:
+  - spelling flip rates (pair-mean and any) across all items and noise-subset items only
+  - noise flip rates (pair-mean and any) on the same noise-subset items
+  - excess = spelling rate on noise-subset items minus noise rate (a matched comparison)
+  - paired, domain-stratified bootstrap 95% CIs on each excess measure
+
+Noise items are those where at least one Roman Urdu variant has more than one repeat.
+Noise rates are computed within each condition's repeats and then averaged across conditions,
+so each item contributes exactly one noise measurement regardless of which conditions are noisy.
+
+When no noise items exist (all rows have repeat == 1), all noise-dependent columns are NaN
+and a zero is reported for n_noise_items.
+"""
+
 from itertools import combinations
 
 import numpy as np
 import pandas as pd
 
-from .flips import flips_table, VARIANTS
+from .flips import flips_table, VARIANTS, PAIRS
 
 
-def noise_per_item(df, conditions=VARIANTS):
-    """Per model x item: repeats ke beech average flip rate (sirf diye gaye conditions par)."""
-    d = df[df["condition"].isin(conditions)].copy()
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+def _paired_bootstrap_excess_ci(
+    spell_vals: np.ndarray,
+    noise_vals: np.ndarray,
+    strata: "np.ndarray | None",
+    n_boot: int,
+    seed: int,
+) -> tuple[float, float]:
+    """
+    Paired percentile bootstrap CI for excess = mean(spell) - mean(noise).
+
+    Items are resampled jointly: for each bootstrap resample, the same set of
+    item indices is used for both the spelling and noise arrays.  This preserves
+    the within-item pairing and correctly propagates uncertainty in the matched
+    difference.  Domain stratification mirrors the approach in bootstrap_mean_ci:
+    items are resampled independently within each stratum and the stratum-weighted
+    mean is taken across the full sample.
+
+    Parameters
+    ----------
+    spell_vals : per-item spelling flip rate (shape (n,))
+    noise_vals : per-item noise flip rate on the same n items
+    strata     : per-item domain label array of length n, or None for no stratification
+    n_boot     : number of bootstrap resamples
+    seed       : RNG seed for reproducibility
+
+    Returns
+    -------
+    (ci_low, ci_high) : 2.5th and 97.5th percentiles of the bootstrap excess
+    """
+    spell_vals = np.asarray(spell_vals, dtype=float)
+    noise_vals = np.asarray(noise_vals, dtype=float)
+    n = len(spell_vals)
+
+    if strata is None:
+        groups = [np.arange(n)]
+    else:
+        strata = np.asarray(strata, dtype=object)
+        strata_s = pd.Series(strata).where(pd.notna(strata), "__missing_domain__").to_numpy()
+        groups = [np.flatnonzero(strata_s == label) for label in pd.unique(strata_s)]
+
+    rng = np.random.default_rng(seed)
+    boot_spell = np.zeros(n_boot, dtype=float)
+    boot_noise = np.zeros(n_boot, dtype=float)
+
+    for positions in groups:
+        m = len(positions)
+        # Vectorised: draw (n_boot, m) indices into positions, apply to both arrays
+        draws = rng.integers(0, m, size=(n_boot, m))
+        boot_spell += spell_vals[positions][draws].mean(axis=1) * m
+        boot_noise += noise_vals[positions][draws].mean(axis=1) * m
+
+    boot_spell /= n
+    boot_noise /= n
+    boot_excess = boot_spell - boot_noise
+    return tuple(np.percentile(boot_excess, [2.5, 97.5]))
+
+
+def _noise_per_item(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Per (model_slug, item_id): average within-condition pair-flip rate and
+    any-flip rate across the Roman Urdu variant conditions that have > 1 repeat.
+
+    Returns a DataFrame with columns:
+        model_slug, item_id, noise_pair_flip, noise_any_flip[, domain]
+    Only items with at least one condition having > 1 repeat are returned.
+    If df contains a domain column its values are propagated into the result
+    after a consistency check (all rows for one item must share one domain).
+
+    Raises
+    ------
+    ValueError
+        If any (model_slug, condition, item_id) group has an inconsistent set of
+        repeats (i.e., not all repeats for a noisy condition are present).
+    ValueError
+        If an item has conflicting domain labels across conditions.
+    """
+    d = df[df["condition"].isin(VARIANTS)].copy()
     d["ans"] = d["parsed_answer"].where(d["valid"], "INVALID")
+
     nrep = d.groupby(["model_slug", "condition", "item_id"])["repeat"].transform("nunique")
     d = d[nrep > 1]
-    if d.empty:
-        raise ValueError("Noise subset mein repeats nahi mile")
-    wide = d.pivot(index=["model_slug", "condition", "item_id"], columns="repeat", values="ans")
+    # Caller is responsible for guarding against an empty d (see _has_repeats check).
+
+    wide = d.pivot(
+        index=["model_slug", "condition", "item_id"], columns="repeat", values="ans"
+    )
     if wide.isna().any().any():
-        raise ValueError("Kisi item ka koi repeat missing hai")
-    pairs = list(combinations(wide.columns, 2))
-    flips = np.column_stack(
+        raise ValueError(
+            "Repeated-run data is incomplete: at least one (model, condition, item) "
+            "is missing a repeat value."
+        )
+
+    rep_cols = list(wide.columns)
+    pairs = list(combinations(rep_cols, 2))
+
+    pair_flip_arr = np.column_stack(
         [(wide[a] != wide[b]).to_numpy(dtype=float) for a, b in pairs]
     )
-    wide["noise"] = flips.mean(axis=1)
-    return wide.reset_index().groupby(["model_slug", "item_id"])["noise"].mean().reset_index()
+    wide["_pair_flip"] = pair_flip_arr.mean(axis=1)
+    wide["_any_flip"] = (pair_flip_arr.sum(axis=1) > 0).astype(float)
+
+    per_condition = wide.reset_index()[
+        ["model_slug", "condition", "item_id", "_pair_flip", "_any_flip"]
+    ]
+    per_item = (
+        per_condition
+        .groupby(["model_slug", "item_id"])[["_pair_flip", "_any_flip"]]
+        .mean()
+        .reset_index()
+        .rename(columns={"_pair_flip": "noise_pair_flip", "_any_flip": "noise_any_flip"})
+    )
+
+    # Propagate domain column if present in the input DataFrame
+    if "domain" in df.columns:
+        domain_counts = df.groupby(
+            ["model_slug", "item_id"], dropna=False
+        )["domain"].nunique(dropna=False)
+        if (domain_counts > 1).any():
+            raise ValueError(
+                "An item has conflicting domain values across conditions; "
+                "domain must be constant per item."
+            )
+        domains = df.drop_duplicates(["model_slug", "item_id"])[
+            ["model_slug", "item_id", "domain"]
+        ]
+        per_item = per_item.merge(
+            domains, on=["model_slug", "item_id"], how="left", validate="one_to_one"
+        )
+
+    return per_item
 
 
-def compare_to_noise(df, n_boot=2000, seed=42):
-    """Per model: spelling flip rate vs noise flip rate, same noise-subset items, paired bootstrap."""
-    f = flips_table(df)
-    f["spelling"] = f["flip_pairs"] / 3          # 3 jodiyon ka average
-    nz = noise_per_item(df)
-    m = f.merge(nz, on=["model_slug", "item_id"], how="inner")   # sirf noise items
+def _has_repeats(df: pd.DataFrame) -> bool:
+    """Return True if any Roman Urdu variant row has more than one repeat value."""
+    ru = df[df["condition"].isin(VARIANTS)]
+    if ru.empty:
+        return False
+    return (
+        ru.groupby(["model_slug", "condition", "item_id"])["repeat"]
+        .nunique()
+        .gt(1)
+        .any()
+    )
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def compare_to_noise(
+    df: pd.DataFrame, n_boot: int = 2000, seed: int = 42
+) -> pd.DataFrame:
+    """
+    Per model: spelling flip rates vs noise baseline, with paired bootstrap CIs.
+
+    Parameters
+    ----------
+    df : DataFrame following CONTRACTS results schema (with repeat column).
+    n_boot : number of paired bootstrap resamples for the excess CIs.
+             Must be >= 1.  Larger values reduce Monte Carlo error in the CI.
+    seed : RNG seed; independently controls the pair-flip and any-flip bootstraps
+           for each model so results are fully reproducible.
+
+    Returns
+    -------
+    DataFrame with one row per model and columns:
+        model_slug
+        n_noise_items                items with > 1 repeat in any RU variant condition
+        spelling_pair_mean_all_items mean pair-flip rate across all items (repeat == 1)
+        spelling_pair_mean_noise_items  mean pair-flip rate on noise-subset items only
+        noise_pair_flip              mean within-condition pair-flip rate on noise items
+        excess_pair_mean             spelling_pair_mean_noise_items - noise_pair_flip
+        excess_pair_ci_low           2.5th percentile, paired bootstrap
+        excess_pair_ci_high          97.5th percentile, paired bootstrap
+        spelling_flip_any_all_items  mean any-flip rate across all items (repeat == 1)
+        spelling_flip_any_noise_items  mean any-flip rate on noise-subset items only
+        noise_any_flip               mean within-condition any-flip rate on noise items
+        excess_any                   spelling_flip_any_noise_items - noise_any_flip
+        excess_any_ci_low            2.5th percentile, paired bootstrap
+        excess_any_ci_high           97.5th percentile, paired bootstrap
+
+    When n_noise_items == 0 all noise-dependent columns contain NaN and
+    spelling_pair_mean_all_items / spelling_flip_any_all_items are still computed.
+    """
+    if n_boot < 1:
+        raise ValueError("n_boot must be at least 1.")
+
+    n_pairs = len(PAIRS)  # 3 for the current design; avoids a hard-coded denominator
+
+    # Spelling flips from main runs (repeat == 1 only)
+    f = flips_table(df, valid_only=False)
+    f = f[["model_slug", "item_id", "flip_pairs", "flip_any"]].copy()
+    f["spelling_pair_rate"] = f["flip_pairs"] / n_pairs
+
+    # Build the noise-per-item table (or an empty placeholder when no repeats exist)
+    if _has_repeats(df):
+        nz = _noise_per_item(df)
+    else:
+        nz = pd.DataFrame(
+            columns=["model_slug", "item_id", "noise_pair_flip", "noise_any_flip"]
+        )
+
+    _nan_ci = dict(
+        spelling_pair_mean_noise_items=np.nan,
+        noise_pair_flip=np.nan,
+        excess_pair_mean=np.nan,
+        excess_pair_ci_low=np.nan,
+        excess_pair_ci_high=np.nan,
+        spelling_flip_any_noise_items=np.nan,
+        noise_any_flip=np.nan,
+        excess_any=np.nan,
+        excess_any_ci_low=np.nan,
+        excess_any_ci_high=np.nan,
+    )
+
     rows = []
-    for model, g in m.groupby("model_slug"):
-        n = len(g)
-        rng = np.random.default_rng(seed)
-        idx = rng.integers(0, n, size=(n_boot, n))
-        diff = (g["spelling"] - g["noise"]).to_numpy()
-        boot = diff[idx].mean(axis=1)
+    for model_index, (model, gf) in enumerate(f.groupby("model_slug", sort=True)):
+        spell_pair_all = gf["spelling_pair_rate"].mean()
+        spell_any_all = gf["flip_any"].mean()
+
+        gn = nz[nz["model_slug"] == model]
+        n_noise = len(gn)
+
+        if n_noise == 0:
+            rows.append({
+                "model_slug": model,
+                "n_noise_items": 0,
+                "spelling_pair_mean_all_items": spell_pair_all,
+                "spelling_flip_any_all_items": spell_any_all,
+                **_nan_ci,
+            })
+            continue
+
+        # Build the merge column list dynamically so domain is included if present
+        merge_cols = ["item_id", "noise_pair_flip", "noise_any_flip"]
+        if "domain" in gn.columns:
+            merge_cols.append("domain")
+
+        merged = gf.merge(gn[merge_cols], on="item_id", how="inner")
+
+        if merged.empty:
+            rows.append({
+                "model_slug": model,
+                "n_noise_items": 0,
+                "spelling_pair_mean_all_items": spell_pair_all,
+                "spelling_flip_any_all_items": spell_any_all,
+                **_nan_ci,
+            })
+            continue
+
+        strata = merged["domain"].to_numpy() if "domain" in merged.columns else None
+        spell_pair_arr = merged["spelling_pair_rate"].to_numpy(dtype=float)
+        spell_any_arr = merged["flip_any"].to_numpy(dtype=float)
+        noise_pair_arr = merged["noise_pair_flip"].to_numpy(dtype=float)
+        noise_any_arr = merged["noise_any_flip"].to_numpy(dtype=float)
+
+        # Use distinct seeds per model and per metric to avoid seed re-use
+        pair_ci = _paired_bootstrap_excess_ci(
+            spell_pair_arr, noise_pair_arr, strata,
+            n_boot, seed + model_index * 2,
+        )
+        any_ci = _paired_bootstrap_excess_ci(
+            spell_any_arr, noise_any_arr, strata,
+            n_boot, seed + model_index * 2 + 1,
+        )
+
         rows.append({
             "model_slug": model,
-            "n_noise_items": n,
-            "spelling_flip_all": f.loc[f["model_slug"] == model, "spelling"].mean(),
-            "spelling_flip_noise_items": g["spelling"].mean(),
-            "noise_flip": g["noise"].mean(),
-            "excess": diff.mean(),
-            "ci_low": np.percentile(boot, 2.5),
-            "ci_high": np.percentile(boot, 97.5),
+            "n_noise_items": n_noise,
+            "spelling_pair_mean_all_items": spell_pair_all,
+            "spelling_pair_mean_noise_items": spell_pair_arr.mean(),
+            "noise_pair_flip": noise_pair_arr.mean(),
+            "excess_pair_mean": spell_pair_arr.mean() - noise_pair_arr.mean(),
+            "excess_pair_ci_low": pair_ci[0],
+            "excess_pair_ci_high": pair_ci[1],
+            "spelling_flip_any_all_items": spell_any_all,
+            "spelling_flip_any_noise_items": spell_any_arr.mean(),
+            "noise_any_flip": noise_any_arr.mean(),
+            "excess_any": spell_any_arr.mean() - noise_any_arr.mean(),
+            "excess_any_ci_low": any_ci[0],
+            "excess_any_ci_high": any_ci[1],
         })
+
     return pd.DataFrame(rows)

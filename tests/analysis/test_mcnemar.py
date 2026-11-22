@@ -1,5 +1,6 @@
 import pandas as pd
-from src.analysis.mcnemar import mcnemar_table
+import pytest
+from src.analysis.mcnemar import mcnemar_table, mcnemar_all_conditions_table
 
 
 def build():
@@ -31,3 +32,32 @@ def test_known_numbers():
     assert abs(t.loc["m1", "p_holm"] - 0.21875) < 1e-9
     assert abs(t.loc["m2", "p_holm"] - 1.0) < 1e-9
     assert not t["significant"].any()
+
+
+def test_all_conditions_skips_missing_condition():
+    # Only NU and RU-P are present in build()
+    df = build()
+    with pytest.warns(UserWarning, match="Skipping condition 'RU-R'"):
+        t = mcnemar_all_conditions_table(df, n_boot=100)
+    # Only RU-P should be in condition_b
+    assert set(t["condition_b"].unique()) == {"RU-P"}
+    assert len(t) == 2  # 2 models x 1 condition
+    assert "p_holm" in t.columns
+    assert "significant" in t.columns
+
+
+def test_all_conditions_raises_when_all_missing():
+    # Only NU present, no comparison condition
+    df = pd.DataFrame([
+        {"model_slug": "m1", "item_id": "i0", "condition": "NU", "repeat": 1, "correct": True}
+    ])
+    with pytest.raises(ValueError, match="No conditions could be tested"):
+        mcnemar_all_conditions_table(df, n_boot=100)
+
+
+def test_all_conditions_custom_conditions_list():
+    # Supply specific conditions list
+    df = build()
+    t = mcnemar_all_conditions_table(df, n_boot=100, conditions=["RU-P"])
+    assert len(t) == 2
+    assert set(t["condition_b"]) == {"RU-P"}

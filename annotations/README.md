@@ -6,9 +6,12 @@ This directory contains the templates, guidelines, and instructions for Phase 2 
 
 ## 1. Files in this Directory
 
-- `verification_template.csv`: Template for full 100-item verification across all three Roman Urdu conditions.
-- `kappa_template.csv`: Template for the 50-item double-rated inter-annotator agreement check.
-- `README.md`: Protocol, instructions for Google Sheets, and verification workflow.
+- `verification_template.csv`: Schema-only template for full 100-item verification across all three Roman Urdu conditions.
+- `verification_pending_assignment.csv`: Prepared 300-row file covering the 100 items from the nested 200 fallback subset (`umm-0001` through `umm-0100`) across `RU-P`, `RU-R`, and `RU-X`, with raters flagged as `PENDING_ASSIGNMENT` awaiting Gate G0/G1 formal designation.
+- `kappa_template.csv`: Schema-only template for the 50-item double-rated inter-annotator agreement check.
+- `kappa_pending_assignment.csv`: Prepared 50-item double-rating template covering items `umm-0001` through `umm-0050` across `RU-P`.
+- `GUIDELINES.md`: Comprehensive human verification manual covering all four criteria, edge cases, examples, and the Kappa calculation workflow.
+- `README.md`: Protocol overview, instructions for Google Sheets, and verification workflow.
 
 ---
 
@@ -58,6 +61,15 @@ Per `PLAN.md` (Gate G2) and `RULES.md` (Section 9):
 | `rater_1` | `y` / `n` | Independent rating for meaning preservation by Rater 1. |
 | `rater_2` | `y` / `n` | Independent rating for meaning preservation by Rater 2. |
 
+### Annotation validity checks
+
+- Use exactly one row per `item_id` and `condition`. The same item may appear once for each of `RU-P`, `RU-R`, and `RU-X`.
+- Enter only `y` or `n` in both rater columns. Blank cells and other values are not scored; correct the source sheet before calculating agreement.
+- Do not delete incomplete or disputed rows to improve agreement. Resolve them with the project lead and retain the original ratings for audit.
+- If all ratings have no class variation, Cohen's kappa is undefined even when raw agreement is 100%. Report that status and do not treat it as a pass.
+- Calculate agreement only from an actually completed sheet. The template's example rows are not human annotations and are not evidence of agreement.
+- Both CSV templates contain headers only; add approved item assignments before collecting ratings.
+
 ---
 
 ## 4. Google Sheets Workflow
@@ -95,4 +107,6 @@ The script will output:
 - Total items evaluated ($N$)
 - Observed raw agreement ($P_o$)
 - Cohen's kappa score ($\kappa$)
+- A `PASSED`, `BELOW_THRESHOLD`, or `UNDEFINED_NO_CLASS_VARIATION` status.
 - An automatic alert if $\kappa < 0.80$, advising rule revision per Gate G2 requirements.
+- An explicit error for duplicate item-condition rows, missing ratings, or labels outside `y`/`n`.
