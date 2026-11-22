@@ -1,1 +1,5 @@
 order,pattern,replacement,op_id,note
+1,kh([a-zA-Z]+),x\g<1>,X1_X_FOR_KH,Substitute x for kh (khuda->xuda; khatam->xatam; khabar->xabar)
+2,([a-zA-Z]*)q([a-zA-Z]*),\g<1>k\g<2>,X2_K_FOR_Q,Substitute k for q sound (qalam->kalam; qanoon->kanoon; nuqta->nukta)
+3,ph([a-zA-Z]*),f\g<1>,X3_F_FOR_PH,Substitute f for initial ph sound (phool->fool; phal->fal; phir->fir)
+4,w([aeiou][a-zA-Z]*),v\g<1>,X4_V_FOR_W,Substitute v for initial w before vowel (watan->vatan; wazir->vazir; waqt->vaqt)

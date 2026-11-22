@@ -1,1 +1,20 @@
 ru_p,ru_r,op_id,note
+jawab,jwab,R1_DROP_VOWEL,Attested non-initial vowel elision
+sawal,swal,R1_DROP_VOWEL,Attested non-initial vowel elision
+kitab,ktab,R1_DROP_VOWEL,Attested non-initial vowel elision
+madad,madd,R1_DROP_VOWEL,Attested non-initial vowel elision
+samajh,smjh,R1_DROP_VOWEL,Attested non-initial vowel elision
+nahin,nhi,R2_SHORTEN_FREQ,Attested frequent word contraction
+mein,mn,R2_SHORTEN_FREQ,Attested frequent word contraction
+bhi,b,R2_SHORTEN_FREQ,Attested single letter contraction
+kya,k,R2_SHORTEN_FREQ,Attested single letter question contraction
+wala,wla,R2_SHORTEN_FREQ,Attested suffix vowel drop
+wali,wli,R2_SHORTEN_FREQ,Attested suffix vowel drop
+wale,wle,R2_SHORTEN_FREQ,Attested suffix vowel drop
+lekin,lkn,R3_CASUAL_SHORTEN,Attested casual conjunction contraction
+hoga,hga,R3_CASUAL_SHORTEN,Attested auxiliary vowel drop
+hogi,hgi,R3_CASUAL_SHORTEN,Attested auxiliary vowel drop
+hoge,hge,R3_CASUAL_SHORTEN,Attested auxiliary vowel drop
+hota,hta,R3_CASUAL_SHORTEN,Attested auxiliary vowel drop
+hoti,hti,R3_CASUAL_SHORTEN,Attested auxiliary vowel drop
+hote,hte,R3_CASUAL_SHORTEN,Attested auxiliary vowel drop

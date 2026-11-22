@@ -9,9 +9,14 @@ from pathlib import Path
 from src.data.draft_rup import (
     DraftClientError,
     DraftConfigurationError,
+    ProviderDraftClient,
+    _cache_key,
     build_prompt,
     draft_items,
     load_lexicon,
+    load_model_config,
+    parse_response,
+    strip_markdown_fences,
     validate_helper_config,
 )
 
@@ -63,12 +68,35 @@ class FakeClient:
 
 
 class DraftRupTests(unittest.TestCase):
-    def test_repository_lexicon_is_header_only(self):
+    def test_repository_lexicon_loads_and_contains_entries(self):
         lexicon_path = (
             Path(__file__).resolve().parents[2]
             / "src" / "data" / "rules" / "ru_p_lexicon.csv"
         )
-        self.assertEqual(load_lexicon(lexicon_path), {})
+        lexicon = load_lexicon(lexicon_path)
+        self.assertGreater(len(lexicon), 0)
+        self.assertIn("میں", lexicon)
+        self.assertEqual(lexicon["نہیں"], "nahin")
+
+    def test_repository_models_config_does_not_claim_unresolved_helper_is_valid(self):
+        config_path = (
+            Path(__file__).resolve().parents[2]
+            / "configs" / "models.yaml"
+        )
+        model_config = load_model_config(config_path)
+        with self.assertRaisesRegex(DraftConfigurationError, "TODO/TBD"):
+            validate_helper_config(model_config)
+
+    def test_provider_draft_client_missing_key_raises_draft_client_error(self):
+        client = ProviderDraftClient("gemini", api_key_env="NON_EXISTENT_KEY_12345")
+        with self.assertRaisesRegex(DraftClientError, "API key is unavailable"):
+            client.complete("prompt text", "gemini-3.5-flash-lite")
+
+    def test_provider_draft_client_mock_completes_successfully(self):
+        client = ProviderDraftClient("mock")
+        text = client.complete("prompt text", "mock-model")
+        self.assertIsInstance(text, str)
+        self.assertTrue(len(text) > 0)
 
     def test_refuses_unresolved_or_evaluated_helper(self):
         client = FakeClient(['{"question":"toy","options":["a","b"]}'])
@@ -237,6 +265,122 @@ class DraftRupTests(unittest.TestCase):
             self.assertEqual(result.failures, 1)
             failure = json.loads((root / "failures.jsonl").read_text(encoding="utf-8"))
             self.assertIsNone(failure["raw_output"])
+
+    def test_parse_response_raw_json(self):
+        raw = '{"question": "sawaal kya hai?", "options": ["pehla", "doosra"]}'
+        payload, reason = parse_response(raw, 2)
+        self.assertIsNone(reason)
+        self.assertEqual(payload, {"question": "sawaal kya hai?", "options": ["pehla", "doosra"]})
+
+    def test_parse_response_json_inside_json_fences(self):
+        raw = (
+            "```json\n"
+            "{\n"
+            '  "question": "sawaal kya hai?",\n'
+            '  "options": ["pehla", "doosra"]\n'
+            "}\n"
+            "```"
+        )
+        payload, reason = parse_response(raw, 2)
+        self.assertIsNone(reason)
+        self.assertEqual(payload, {"question": "sawaal kya hai?", "options": ["pehla", "doosra"]})
+
+    def test_parse_response_json_inside_plain_fences(self):
+        raw = (
+            "```\n"
+            "{\n"
+            '  "question": "sawaal kya hai?",\n'
+            '  "options": ["pehla", "doosra"]\n'
+            "}\n"
+            "```"
+        )
+        payload, reason = parse_response(raw, 2)
+        self.assertIsNone(reason)
+        self.assertEqual(payload, {"question": "sawaal kya hai?", "options": ["pehla", "doosra"]})
+
+    def test_parse_response_invalid_json_remains_rejected(self):
+        # Malformed JSON in fences
+        raw1 = "```json\n{invalid json\n```"
+        payload1, reason1 = parse_response(raw1, 2)
+        self.assertIsNone(payload1)
+        self.assertEqual(reason1, "bad_json")
+
+        # Plain invalid text
+        raw2 = "This is not json at all."
+        payload2, reason2 = parse_response(raw2, 2)
+        self.assertIsNone(payload2)
+        self.assertEqual(reason2, "bad_json")
+
+        # Wrong schema inside fences
+        raw3 = '```json\n{"wrong": "keys"}\n```'
+        payload3, reason3 = parse_response(raw3, 2)
+        self.assertIsNone(payload3)
+        self.assertEqual(reason3, "invalid_schema")
+
+    def test_cache_hits_do_not_trigger_api_delays(self):
+        item1 = toy_item("toy-1", question="TOY QUESTION 1")
+        item2 = toy_item("toy-2", question="TOY QUESTION 2")
+        delays = []
+        with tempfile.TemporaryDirectory() as temp:
+            cache_path = Path(temp) / "cache.jsonl"
+            prompt1 = build_prompt(item1, {})
+            prompt2 = build_prompt(item2, {})
+            key1 = _cache_key(prompt1, "TOY_HELPER")
+            key2 = _cache_key(prompt2, "TOY_HELPER")
+            canned = json.dumps({"question": "TOY 123", "options": ["TOY_ONE", "TOY_TWO"]})
+            with cache_path.open("w", encoding="utf-8") as f:
+                f.write(json.dumps({"cache_key": key1, "raw_output": canned}) + "\n")
+                f.write(json.dumps({"cache_key": key2, "raw_output": canned}) + "\n")
+
+            cfg = toy_config()
+            cfg["helper"]["rpm_limit"] = 15
+            client = FakeClient([])
+            result = draft_items(
+                [item1, item2],
+                client,
+                cfg,
+                {},
+                cache_path=cache_path,
+                failures_path=Path(temp) / "failures.jsonl",
+                sleep=delays.append,
+            )
+            self.assertEqual(result.cache_hits, 2)
+            self.assertEqual(len(delays), 0)
+
+    def test_live_requests_respect_configured_rate_limit(self):
+        item1 = toy_item("toy-1", question="TOY QUESTION 1")
+        item2 = toy_item("toy-2", question="TOY QUESTION 2")
+        delays = []
+        current_time = [100.0]
+
+        def fake_monotonic():
+            return current_time[0]
+
+        def fake_sleep(duration):
+            delays.append(duration)
+            current_time[0] += duration
+
+        canned = json.dumps({"question": "TOY 123", "options": ["TOY_ONE", "TOY_TWO"]})
+        client = FakeClient([canned, canned])
+        cfg = toy_config()
+        cfg["helper"]["rpm_limit"] = 15
+
+        with tempfile.TemporaryDirectory() as temp:
+            result = draft_items(
+                [item1, item2],
+                client,
+                cfg,
+                {},
+                cache_path=Path(temp) / "cache.jsonl",
+                failures_path=Path(temp) / "failures.jsonl",
+                sleep=fake_sleep,
+                monotonic=fake_monotonic,
+            )
+            self.assertEqual(len(client.calls), 2)
+            self.assertEqual(result.cache_hits, 0)
+            self.assertEqual(result.failures, 0)
+            self.assertEqual(len(delays), 1)
+            self.assertAlmostEqual(delays[0], 5.0, places=1)
 
 
 if __name__ == "__main__":
