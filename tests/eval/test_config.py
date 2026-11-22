@@ -141,3 +141,38 @@ def test_model_todo_error_names_field_and_file(tmp_path: Path) -> None:
 
     with pytest.raises(ConfigError, match=r"requests_per_minute.*models\.yaml"):
         load_model_config(models_path, "fixture", load_api_key=False)
+
+
+def test_model_generation_overrides_are_loaded_and_validated(tmp_path: Path) -> None:
+    data = _models_data()
+    data["evaluated_models"][0]["provider"] = "groq"
+    data["evaluated_models"][0]["max_output_tokens"] = 4096
+    data["evaluated_models"][0]["reasoning_effort"] = "low"
+    models_path = _write_yaml(tmp_path / "configs" / "models.yaml", data)
+
+    model = load_model_config(models_path, "fixture", load_api_key=False)
+
+    assert model.max_output_tokens == 4096
+    assert model.reasoning_effort == "low"
+
+
+@pytest.mark.parametrize("invalid", [0, -1, True, "4096"])
+def test_model_output_token_override_must_be_positive_integer(
+    tmp_path: Path, invalid: object
+) -> None:
+    data = _models_data()
+    data["evaluated_models"][0]["max_output_tokens"] = invalid
+    models_path = _write_yaml(tmp_path / "configs" / "models.yaml", data)
+
+    with pytest.raises(ConfigError, match="max_output_tokens"):
+        load_model_config(models_path, "fixture", load_api_key=False)
+
+
+def test_reasoning_effort_is_groq_only(tmp_path: Path) -> None:
+    data = _models_data()
+    data["evaluated_models"][0]["provider"] = "openrouter"
+    data["evaluated_models"][0]["reasoning_effort"] = "low"
+    models_path = _write_yaml(tmp_path / "configs" / "models.yaml", data)
+
+    with pytest.raises(ConfigError, match="supported only for Groq"):
+        load_model_config(models_path, "fixture", load_api_key=False)

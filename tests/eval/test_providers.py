@@ -114,6 +114,61 @@ def test_openai_compatible_adapters_use_documented_request_shape(
     assert (text, returned_model) == ("B", "returned-model")
 
 
+def test_groq_uses_model_generation_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict = {}
+
+    def fake_post(url, headers, payload, timeout_s):
+        captured.update(payload=payload)
+        return {
+            "choices": [{"message": {"content": "A"}}],
+            "model": "qwen/qwen3.8-27b",
+        }
+
+    monkeypatch.setattr("src.eval.providers._post_json", fake_post)
+    model = _model("groq")
+    model = ModelConfig(
+        slug=model.slug,
+        provider=model.provider,
+        model_string=model.model_string,
+        api_key_env=model.api_key_env,
+        requests_per_minute=model.requests_per_minute,
+        requests_per_day=model.requests_per_day,
+        checked_on=model.checked_on,
+        max_output_tokens=4096,
+        reasoning_effort="low",
+        api_key=model.api_key,
+    )
+
+    OpenAICompatibleProvider("https://provider.invalid").complete(
+        "test prompt", model, _settings()
+    )
+
+    assert captured["payload"]["max_completion_tokens"] == 4096
+    assert captured["payload"]["reasoning_effort"] == "low"
+
+
+def test_openai_compatible_provider_falls_back_to_global_token_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict = {}
+
+    def fake_post(url, headers, payload, timeout_s):
+        captured.update(payload=payload)
+        return {
+            "choices": [{"message": {"content": "A"}}],
+            "model": "returned-model",
+        }
+
+    monkeypatch.setattr("src.eval.providers._post_json", fake_post)
+    OpenAICompatibleProvider("https://provider.invalid").complete(
+        "test prompt", _model("openrouter"), _settings()
+    )
+
+    assert captured["payload"]["max_tokens"] == _settings().max_output_tokens
+
+
 def test_mock_provider_is_deterministic() -> None:
     provider = MockProvider(["B", "C"])
     model = _model("mock")

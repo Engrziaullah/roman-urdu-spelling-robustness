@@ -10,17 +10,22 @@ VARIANTS = ["RU-P", "RU-R", "RU-X"]
 def counts_from_wide(wide):
     """wide: rows = units, columns = raters (jawab). Returns (units x categories) counts."""
     arr = wide.to_numpy()
+
     if arr.ndim != 2 or arr.shape[0] == 0 or arr.shape[1] < 2:
         raise ValueError("Kappa ratings must contain units and at least two raters.")
+
     if pd.isna(arr).any():
         raise ValueError("Kappa ratings cannot contain missing values.")
+
     cats = sorted(pd.unique(arr.ravel()))
     counts = np.stack([(arr == c).sum(axis=1) for c in cats], axis=1).astype(float)
+
     return counts, cats
 
 
 def fleiss_kappa(counts):
     counts = np.asarray(counts, dtype=float)
+
     if (
         counts.ndim != 2
         or counts.shape[0] == 0
@@ -28,37 +33,65 @@ def fleiss_kappa(counts):
         or not np.isfinite(counts).all()
         or (counts < 0).any()
     ):
-        raise ValueError("Fleiss kappa requires a non-empty matrix of finite non-negative counts.")
+        raise ValueError(
+            "Fleiss kappa requires a non-empty matrix of finite non-negative counts."
+        )
+
     N = counts.shape[0]
-    n = counts[0].sum()                       # raters per unit
+    n = counts[0].sum()  # raters per unit
+
     if n < 2 or not np.allclose(counts.sum(axis=1), n):
-        raise ValueError("Every unit must have the same count from at least two raters.")
+        raise ValueError(
+            "Every unit must have the same count from at least two raters."
+        )
+
     p_i = ((counts ** 2).sum(axis=1) - n) / (n * (n - 1))
     p_bar = p_i.mean()
+
     p_j = counts.sum(axis=0) / (N * n)
     p_e = (p_j ** 2).sum()
+
     if p_e == 1:
-        return np.nan                          # sab ne hamesha ek hi jawab diya
+        return np.nan  # sab ne hamesha ek hi jawab diya
+
     return (p_bar - p_e) / (1 - p_e)
 
 
 def kappa_with_ci(counts, item_ids, n_boot=10000, seed=42, strata_ids=None):
     """Point estimate + bootstrap CI. Bootstrap items par hota hai (ek item ke units saath rehte hain)."""
+
     counts = np.asarray(counts, dtype=float)
+
     if counts.ndim != 2 or counts.shape[0] == 0 or len(item_ids) != len(counts):
-        raise ValueError("counts and item_ids must describe the same non-empty set of units.")
+        raise ValueError(
+            "counts and item_ids must describe the same non-empty set of units."
+        )
+
     if n_boot < 1:
         raise ValueError("n_boot must be at least 1.")
+
     n = counts[0].sum()
     k_hat = fleiss_kappa(counts)
+
     p_i = ((counts ** 2).sum(axis=1) - n) / (n * (n - 1))
+
     ids, inv = np.unique(np.asarray(item_ids), return_inverse=True)
     m = len(ids)
+
     sum_p = np.bincount(inv, weights=p_i, minlength=m)
     units = np.bincount(inv, minlength=m).astype(float)
+
     cat = np.stack(
-        [np.bincount(inv, weights=counts[:, j], minlength=m) for j in range(counts.shape[1])],
+        [
+            np.bincount(
+                inv,
+                weights=counts[:, j],
+                minlength=m
+            )
+            for j in range(counts.shape[1])
+        ],
         axis=1,
+    )
     )
     if strata_ids is None:
         item_strata = np.zeros(m, dtype=int)

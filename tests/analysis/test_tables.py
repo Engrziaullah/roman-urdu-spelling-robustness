@@ -30,7 +30,7 @@ def synth_df():
 
 
 def test_make_accuracy_table(synth_df):
-    table = make_accuracy_table(synth_df)
+    table = make_accuracy_table(synth_df, n_boot=200)
     assert set(["model_slug", "condition", "n", "accuracy", "ci_low", "ci_high", "invalid_rate"]).issubset(table.columns)
     assert len(table) == 15  # 3 models x 5 conditions
 
@@ -151,11 +151,18 @@ def test_make_errors_table(synth_df):
     assert set(["model_slug", "item_id", "condition", "parsed_answer", "gold", "category", "note"]).issubset(table.columns)
     assert len(table) > 0  # Should contain failing items from synthetic data
 
-
 def test_write_all_tables(synth_df, tmp_path):
-    tables = write_all_tables(SYNTH_RESULTS, SYNTH_ITEMS, tmp_path, seed=42, n_boot=50)
+    tables = write_all_tables(
+        SYNTH_RESULTS,
+        SYNTH_ITEMS,
+        tmp_path,
+        seed=42,
+        n_boot=50,
+    )
+
     expected_files = [
         "accuracy.csv",
+
         "accuracy_by_domain.csv",
         "flips.csv",
         "flip_rates.csv",

@@ -18,13 +18,13 @@ what is allowed to change. If they are vague, the result cannot be interpreted.
 
 | # | Decision | Value | Decided by / date |
 |---|---|---|---|
-| 1 | Non-evaluated LLM used to draft RU-P (must NOT be one of the evaluated models) | TBD (model string and provider) | |
-| 2 | Tool/model used for RT (RU-P back to Nastaliq) | TBD (name, version, settings) | |
-| 3 | Random seed for sampling | TBD (CONTRACTS/config use one value everywhere) | |
-| 4 | Size of the spot-check sample on the 400 items not fully verified | TBD (see section 9.3 for guidance) | |
-| 5 | Punctuation policy (section 3.4) confirmed | TBD | |
-| 6 | Number of options per item (from the real UrduMMLU schema) | TBD (verify; do not assume 4) | |
-| 7 | Who verifies which item ranges (section 9.1) | TBD | |
+| 1 | Non-evaluated LLM used to draft RU-P (must NOT be one of the evaluated models) | PENDING (model string and provider) | |
+| 2 | Tool/model used for RT (RU-P back to Nastaliq) | PENDING (name, version, settings) | |
+| 3 | Random seed for sampling | 42 | Zia Ullah, covering for Sudais, 2026-11-19 |
+| 4 | Size of the spot-check sample on the 400 items not fully verified | 60 items, 12 per domain, sampled from outside the 100 fully verified items with seed 42 | Zia Ullah, covering for Sudais, 2026-11-19 |
+| 5 | Punctuation policy (section 3.4) confirmed | Confirmed as written in section 3.4 | Zia Ullah, covering for Sudais, 2026-11-19 |
+| 6 | Number of options per item (from the real UrduMMLU schema) | The source sample had 497 four-option and 3 five-option items. The three five-option selections were replaced by the next-ranked unused four-option eligible item from the same domain using seed 42. Final sample: 500 four-option items. | Zia Ullah, covering for Sudais, 2026-11-19 |
+| 7 | Who verifies which item ranges (section 9.1) | PENDING; do not assign Zia to RU-R/RU-X or items with rules authored by Zia | |
 
 ## 2. What is transformed
 
@@ -200,6 +200,7 @@ are regenerated and the affected items are re-checked.
 
 | Version | Date | Author | Change | Why | Items affected / re-checked |
 |---|---|---|---|---|---|
+| v1 | 2026-11-19 | Zia Ullah (covering for Sudais) | Recorded decisions 3–6; replaced the three selected five-option records with next-ranked four-option records in the same domains | Keep the 500-item sample at four options per item while preserving the seed-42 stratified order | `umm-0118`, `umm-0266`, `umm-0401`; no Roman Urdu variants exist yet |
 | v0 | (start) | A | Initial draft created | Kick-off | none |
 
 ## 12. Acceptance checklist before the freeze (Gate G2)

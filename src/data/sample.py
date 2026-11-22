@@ -1,6 +1,7 @@
 
 import argparse
 import csv
+import hashlib
 import json
 import random
 from collections import Counter, defaultdict
@@ -38,7 +39,12 @@ def normalize_options(options):
     raise ValueError("Unsupported options format")
 
 
-def create_sample(seed, per_domain, output_file):
+def create_sample(
+    seed: int,
+    per_domain: int,
+    output_file: str | Path,
+    report_file: str | Path | None = None,
+) -> None:
     with open(INPUT_FILE, encoding="utf-8") as f:
         records = json.load(f)
 
@@ -64,12 +70,38 @@ def create_sample(seed, per_domain, output_file):
 
     rng = random.Random(seed)
     selected = []
+    replacements = []
 
     for domain in domains:
         items = list(groups[domain])
         rng.shuffle(items)
 
+        next_candidate_rank = per_domain
         for domain_rank, record in enumerate(items[:per_domain], start=1):
+            selected_record = record
+            if len(normalize_options(record["options"])) != 4:
+                while next_candidate_rank < len(items):
+                    candidate = items[next_candidate_rank]
+                    next_candidate_rank += 1
+                    if len(normalize_options(candidate["options"])) == 4:
+                        selected_record = candidate
+                        replacements.append(
+                            {
+                                "domain_rank": domain_rank,
+                                "domain": domain,
+                                "original_source_row": str(record["id"]),
+                                "replacement_source_row": str(candidate["id"]),
+                                "replacement_domain_rank": next_candidate_rank,
+                            }
+                        )
+                        break
+                else:
+                    raise ValueError(
+                        f"STOP: {domain} has no next-ranked four-option "
+                        "eligible record for replacement."
+                    )
+
+            record = selected_record
             options = normalize_options(record["options"])
             gold = str(record["correct_key"]).upper()
 
@@ -104,7 +136,7 @@ def create_sample(seed, per_domain, output_file):
     final_rows = []
 
     for sample_rank, item in enumerate(selected, start=1):
-        final_rows.append({
+        final_row = {
             "item_id": f"umm-{sample_rank:04d}",
             "source_row": item["source_row"],
             "domain": item["domain"],
@@ -116,11 +148,25 @@ def create_sample(seed, per_domain, output_file):
             "verified": True,
             "sample_rank": sample_rank,
             "notes": "",
-        })
+        }
+        final_rows.append(final_row)
+        for replacement in replacements:
+            if (
+                replacement["domain"] == item["domain"]
+                and replacement["domain_rank"] == item["domain_rank"]
+            ):
+                replacement["item_id"] = final_row["item_id"]
 
-    with open(output_file, "w", encoding="utf-8") as f:
+    with open(output_file, "w", encoding="utf-8", newline="\n") as f:
         for row in final_rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    option_counts = Counter(len(row["options"]) for row in final_rows)
+    if option_counts != Counter({4: len(final_rows)}):
+        raise ValueError("Four-option replacement policy was not satisfied")
+    with open(output_file, "r", encoding="utf-8", newline="") as f:
+        normalized_jsonl = f.read().replace("\r\n", "\n")
+    normalized_hash = hashlib.sha256(normalized_jsonl.encode("utf-8")).hexdigest()
 
     domain_counts = Counter(row["domain"] for row in final_rows)
     subject_counts = Counter(
@@ -141,7 +187,9 @@ def create_sample(seed, per_domain, output_file):
     if len({row["item_id"] for row in final_rows}) != len(final_rows):
         raise ValueError("Duplicate item IDs found")
 
-    with open(REPORT_FILE, "w", encoding="utf-8") as f:
+    report_path = Path(report_file) if report_file is not None else REPORT_FILE
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(report_path, "w", encoding="utf-8", newline="\n") as f:
         f.write("# Sampling Report\n\n")
         f.write(f"- Date: {date.today().isoformat()}\n")
         f.write(f"- Seed: {seed}\n")
@@ -158,6 +206,34 @@ def create_sample(seed, per_domain, output_file):
         for domain, count in sorted(domain_counts.items()):
             f.write(f"- {domain}: {count}\n")
 
+        f.write("\n## Option counts after four-option replacement\n\n")
+        for option_count, count in sorted(option_counts.items()):
+            f.write(f"- {option_count} options: {count}\n")
+
+        f.write("\n## Four-option replacements\n\n")
+        f.write(
+            "| Item ID | Domain | Original source ID | Replacement source ID | "
+            "Replacement shuffled domain rank |\n"
+        )
+        f.write("|---|---|---:|---:|---:|\n")
+        for replacement in replacements:
+            f.write(
+                f"| {replacement['item_id']} | {replacement['domain']} | "
+                f"{replacement['original_source_row']} | "
+                f"{replacement['replacement_source_row']} | "
+                f"{replacement['replacement_domain_rank']} |\n"
+            )
+
+        f.write(
+            "\n- Selection policy: a selected non-four-option item is replaced by "
+            "the next unused four-option record in the same seeded, shuffled "
+            "eligible-domain order, after the original per-domain selection.\n"
+        )
+        f.write(
+            f"- Normalized UTF-8 SHA-256 (CRLF normalized to LF): "
+            f"`{normalized_hash}`\n"
+        )
+
         f.write("\n## Selected records by subject\n\n")
         for (domain, subject), count in sorted(subject_counts.items()):
             f.write(f"- {domain} / {subject}: {count}\n")
@@ -167,7 +243,7 @@ def create_sample(seed, per_domain, output_file):
             f.write(f"- {reason}: {count}\n")
 
         f.write("\n## Rank verification\n\n")
-        f.write("- Total ranks: 1–500\n")
+        f.write(f"- Total ranks: 1–{len(final_rows)}\n")
         f.write("- First 200 ranks: 40 records per domain\n")
         f.write("- All domain counts: 100\n")
 

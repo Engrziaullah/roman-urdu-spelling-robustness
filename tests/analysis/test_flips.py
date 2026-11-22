@@ -69,7 +69,7 @@ def test_flip_rates():
         "i3": ("A", "B", "C"),
         "i4": ("A", "A", None),
     })
-    t = flip_rates_table(flips_table(df)).set_index("variant_pair")
+    t = flip_rates_table(flips_table(df), n_boot=200).set_index("variant_pair")
     assert abs(t.loc["any", "flip_rate"] - 0.75) < 1e-9
     assert abs(t.loc["RU-P vs RU-R", "flip_rate"] - 0.25) < 1e-9
     assert abs(t.loc["RU-P vs RU-X", "flip_rate"] - 0.75) < 1e-9
