@@ -6,7 +6,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.analysis.tokens import token_counts
+from src.analysis.tokens import (
+    token_comparison_table,
+    token_counts,
+    token_summary_table,
+)
 
 MOCK_ITEMS = Path("tests/fixtures/mock_items_nu.jsonl")
 
@@ -33,6 +37,7 @@ def test_token_counts_with_fake_tokenizer(monkeypatch):
     assert list(counts.columns) == [
         "item_id",
         "condition",
+        "domain",
         "n_tokens_question",
         "n_tokens_options",
         "n_tokens_total",
@@ -40,6 +45,7 @@ def test_token_counts_with_fake_tokenizer(monkeypatch):
     ]
     assert len(counts) == len(items)
     assert counts["condition"].tolist() == items["condition"].tolist()
+    assert counts["domain"].tolist() == items["domain"].tolist()
     assert counts.loc[0, "n_tokens_question"] == len(items.loc[0, "question"].split())
     assert counts.loc[0, "n_tokens_options"] == sum(
         len(option.split()) for option in items.loc[0, "options"]
@@ -73,3 +79,32 @@ def test_token_counts_reports_missing_transformers(monkeypatch):
 
     with pytest.raises(ImportError, match="pip install transformers"):
         token_counts(MOCK_ITEMS)
+
+
+def test_token_summaries_and_paired_comparisons_are_domain_aware():
+    rows = []
+    for item, domain, nu_total, rup_total in [
+        ("i1", "d0", 10, 12),
+        ("i2", "d0", 20, 23),
+        ("i3", "d1", 30, 32),
+    ]:
+        for condition, total in [("NU", nu_total), ("RU-P", rup_total)]:
+            row = {
+                "item_id": item,
+                "condition": condition,
+                "domain": domain,
+                "n_tokens_total": total,
+                "n_tokens_question": total - 4,
+                "n_tokens_options": 4,
+                "n_chars_total": total * 2,
+            }
+            rows.append(row)
+    counts = pd.DataFrame(rows)
+
+    summary = token_summary_table(counts, n_boot=100)
+    comparison = token_comparison_table(counts, n_boot=100)
+
+    assert set(summary["condition"]) == {"NU", "RU-P"}
+    total_difference = comparison.set_index("metric").loc["n_tokens_total"]
+    assert total_difference["mean_difference"] == pytest.approx(7 / 3)
+    assert set(comparison["condition"]) == {"RU-P"}

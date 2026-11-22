@@ -53,6 +53,64 @@ class DraftClient(Protocol):
         ...
 
 
+class ProviderDraftClient:
+    """DraftClient implementation that wraps provider adapters in src.eval.providers."""
+
+    def __init__(
+        self,
+        provider_name: str,
+        api_key_env: str = "GEMINI_API_KEY",
+        api_key: str | None = None,
+        timeout_s: float = 60.0,
+        max_output_tokens: int = 2048,
+    ):
+        import os
+        from src.eval.providers import create_provider
+
+        self.provider_name = provider_name
+        self.api_key_env = api_key_env
+        self.api_key = api_key or os.environ.get(api_key_env)
+        self.timeout_s = timeout_s
+        self.max_output_tokens = max_output_tokens
+        self._provider = create_provider(provider_name)
+
+    def complete(self, prompt: str, model_string: str) -> str:
+        from src.eval.config import ModelConfig, RunSettings
+        from src.eval.providers import ProviderError
+
+        if not self.api_key and self.provider_name != "mock":
+            raise DraftClientError(
+                f"API key is unavailable for environment variable '{self.api_key_env}'."
+            )
+        model_cfg = ModelConfig(
+            slug="helper",
+            provider=self.provider_name,
+            model_string=model_string,
+            api_key_env=self.api_key_env,
+            requests_per_minute=15,
+            requests_per_day=1500,
+            checked_on="2026-11-20",
+            api_key=self.api_key or "mock_key",
+        )
+        settings = RunSettings(
+            seed=42,
+            max_output_tokens=self.max_output_tokens,
+            temperature=0.0,
+            request_timeout_s=self.timeout_s,
+            max_retries=1,
+            max_consecutive_failures=3,
+            backoff_initial_s=1.0,
+            paths={},
+        )
+        try:
+            text, _elapsed, _returned_model = self._provider.complete(
+                prompt, model_cfg, settings
+            )
+            return text
+        except ProviderError as exc:
+            raise DraftClientError(f"Provider request failed: {exc}") from exc
+
+
 @dataclass(frozen=True)
 class DraftResult:
     rows: tuple[dict[str, Any], ...]
@@ -77,7 +135,7 @@ def load_model_config(path: Path) -> dict[str, Any]:
     return payload
 
 
-def validate_helper_config(config: Mapping[str, Any]) -> dict[str, str]:
+def validate_helper_config(config: Mapping[str, Any]) -> dict[str, Any]:
     """Require a resolved helper that is distinct from every evaluated model."""
     helper = config.get("helper")
     evaluated = config.get("evaluated_models")
@@ -98,10 +156,16 @@ def validate_helper_config(config: Mapping[str, Any]) -> dict[str, str]:
         raise DraftConfigurationError(
             "helper provider and model_string must be resolved, not TODO/TBD"
         )
-    helper_model = {
+    helper_model: dict[str, Any] = {
         "provider": provider.strip(),
         "model_string": model_string.strip(),
     }
+    rpm = helper.get("rpm_limit") or helper.get("requests_per_minute")
+    if rpm is not None:
+        try:
+            helper_model["rpm_limit"] = int(rpm)
+        except (ValueError, TypeError):
+            pass
     for index, model in enumerate(evaluated):
         if not isinstance(model, Mapping):
             raise DraftConfigurationError(
@@ -229,10 +293,24 @@ def _fetch_response(
     raise DraftClientError("request attempts exhausted")
 
 
+def strip_markdown_fences(text: str) -> str:
+    """Strip surrounding markdown code fences (```json or ```) and whitespace."""
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        return "\n".join(lines).strip()
+    return stripped
+
+
 def parse_response(raw_output: str, option_count: int) -> tuple[dict[str, Any] | None, str | None]:
     """Validate exact JSON shape and return a reason code for malformed responses."""
+    cleaned = strip_markdown_fences(raw_output)
     try:
-        payload = json.loads(raw_output)
+        payload = json.loads(cleaned)
     except json.JSONDecodeError:
         return None, "bad_json"
     if (
@@ -289,6 +367,37 @@ def _failed_row(
     return row
 
 
+class _DraftRateLimiter:
+    """Enforce minimum spacing between live API requests without delaying cache hits."""
+
+    def __init__(
+        self,
+        rpm_limit: int | float | None,
+        sleep: Callable[[float], None],
+        monotonic: Callable[[], float],
+    ):
+        if rpm_limit is not None and rpm_limit > 0:
+            if rpm_limit <= 15:
+                self._interval = max(5.0, 60.0 / rpm_limit)
+            else:
+                self._interval = 60.0 / rpm_limit
+        else:
+            self._interval = 0.0
+        self._sleep = sleep
+        self._monotonic = monotonic
+        self._last_request: float | None = None
+
+    def wait(self) -> None:
+        if self._interval <= 0:
+            return
+        now = self._monotonic()
+        if self._last_request is not None:
+            delay = self._interval - (now - self._last_request)
+            if delay > 0:
+                self._sleep(delay)
+        self._last_request = self._monotonic()
+
+
 def draft_items(
     items: Sequence[Mapping[str, Any]],
     client: DraftClient,
@@ -304,9 +413,14 @@ def draft_items(
     max_attempts: int = MAX_ATTEMPTS,
     backoff_initial_s: float = BACKOFF_INITIAL_S,
     sleep: Callable[[float], None] = time.sleep,
+    monotonic: Callable[[], float] = time.monotonic,
 ) -> DraftResult:
     """Draft RU-P rows, caching raw responses and retaining every failed item."""
     helper = validate_helper_config(model_config)
+    rpm_limit = helper.get("rpm_limit")
+    if rpm_limit is None and helper.get("provider") == "gemini":
+        rpm_limit = 15
+    rate_limiter = _DraftRateLimiter(rpm_limit, sleep=sleep, monotonic=monotonic)
     selected = list(items)
     if pilot is not None:
         if pilot < 1:
@@ -337,6 +451,7 @@ def draft_items(
         if raw_output is not None:
             cache_hits += 1
         else:
+            rate_limiter.wait()
             try:
                 raw_output = _fetch_response(
                     client,
@@ -422,7 +537,9 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 
 def main(client: DraftClient | None = None) -> None:
-    """Run the injected-client scaffold or refuse when no adapter is supplied."""
+    """Run the injected-client scaffold or instantiate the configured provider adapter."""
+    import os
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--in", dest="input_path", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUTPUT)
@@ -435,18 +552,52 @@ def main(client: DraftClient | None = None) -> None:
     parser.add_argument("--cache", type=Path, default=DEFAULT_CACHE)
     parser.add_argument("--failures", type=Path, default=DEFAULT_FAILURES)
     parser.add_argument("--pilot", type=int, default=None)
+    parser.add_argument(
+        "--mock", action="store_true",
+        help="Use deterministic mock provider for offline testing.",
+    )
     args = parser.parse_args()
 
     model_config = load_model_config(args.config)
     try:
-        validate_helper_config(model_config)
+        helper = validate_helper_config(model_config)
     except DraftConfigurationError as exc:
         parser.error(str(exc))
+
     if client is None:
-        raise SystemExit(
-            "No provider integration is included. Supply an approved DraftClient "
-            "to main() or draft_items(); no network request was made."
-        )
+        if args.mock:
+            import re
+
+            class MockDraftClient:
+                def complete(self, prompt: str, model_string: str) -> str:
+                    source_match = re.search(r"Source JSON:\s*({.*})", prompt, re.DOTALL)
+                    if source_match:
+                        try:
+                            source = json.loads(source_match.group(1))
+                            q = source.get("question", "")
+                            opts = source.get("options", [])
+                            return json.dumps({
+                                "question": f"MOCK_RUP: {q}",
+                                "options": [f"MOCK_RUP: {opt}" for opt in opts],
+                            }, ensure_ascii=False)
+                        except Exception:
+                            pass
+                    return json.dumps({
+                        "question": "MOCK_RUP question",
+                        "options": ["MOCK_RUP A", "MOCK_RUP B", "MOCK_RUP C", "MOCK_RUP D"],
+                    })
+
+            client = MockDraftClient()
+        else:
+            helper_raw = model_config.get("helper", {})
+            api_key_env = helper_raw.get("api_key_env", "GEMINI_API_KEY") if isinstance(helper_raw, dict) else "GEMINI_API_KEY"
+            if not os.environ.get(api_key_env):
+                raise SystemExit(
+                    f"API key environment variable '{api_key_env}' is not set. "
+                    f"Set {api_key_env} in your environment or use --mock for offline validation."
+                )
+            client = ProviderDraftClient(helper["provider"], api_key_env=api_key_env)
+
     rows = _read_jsonl(args.input_path)
     lexicon = load_lexicon(args.lexicon)
     result = draft_items(

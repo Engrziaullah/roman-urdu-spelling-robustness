@@ -14,49 +14,66 @@
 # The providers and slugs below are PROPOSED defaults, not approved decisions.
 
 evaluated_models:
-  # Proposed earlier in the repo: Groq with llama-3.1-8b-instant. Check that this model is still
-  # listed and free on Groq's current model/limits pages before using it; the team must approve it.
-  # TPM 8000 from header; RPM and tokens/day unverified: confirm in console
+evaluated_models:
+  # Evaluated model 1: Groq with Llama 3.1 8B Instant.
+  # Model ID verified against Groq's official model catalog.
+  # Free-tier availability and account-specific limits require confirmation.
   - slug: model-1
     provider: groq
-    model_string: qwen/qwen3.8-27b
+    model_string: llama-3.1-8b-instant
     api_key_env: GROQ_API_KEY
-    requests_per_minute: 20         # self-imposed throttle, NOT the provider's published RPM
-    requests_per_day: 1000          # from x-ratelimit-limit-requests header, 2026-11-19
-    checked_on: 2026-11-19
-    # Groq model docs (2026-11-20): max output 16,384; reasoning_effort=low supported.
-    max_output_tokens: 4096
-    reasoning_effort: low
+    requests_per_minute: TODO
+    requests_per_day: TODO
+    checked_on: "2026-11-22"
 
+  # Evaluated model 2: unresolved.
   - slug: model-2
     provider: gemini
-    model_string: TODO              # exact string from Google's current model list (free tier)
+    model_string: TODO
     api_key_env: GEMINI_API_KEY
     requests_per_minute: TODO
     requests_per_day: TODO
-    checked_on: TODO
+    checked_on: "2026-11-22"
 
+  # Evaluated model 3: OpenRouter catalog model.
+  # Free-tier availability is not confirmed.
   - slug: model-3
     provider: openrouter
-    model_string: TODO              # exact string of a currently free model on OpenRouter
+    model_string: meta-llama/llama-3.2-3b-instruct
     api_key_env: OPENROUTER_API_KEY
     requests_per_minute: TODO
     requests_per_day: TODO
-    checked_on: TODO
+    checked_on: "2026-11-22"
 
-  # Optional 4th model: add another entry with the same fields only if the free limits allow
-  # about 2,500 requests per model for the main run (500 items x 5 conditions) plus the noise repeats.
+  # Evaluated model 2: unresolved. gemini-1.5-flash was not found on the
+  # current official Gemini model documentation and is not confirmed for use.
+  - slug: model-2
+    provider: gemini
+    model_string: TODO
+    api_key_env: GEMINI_API_KEY
+    requests_per_minute: TODO
+    requests_per_day: TODO
+    checked_on: "2026-11-22"
+
+  # Evaluated model 3: OpenRouter catalog lists the paid model below.
+  # The old :free suffix was not found in the live public catalog.
+  - slug: model-3
+    provider: openrouter
+    model_string: meta-llama/llama-3.2-3b-instruct
+    api_key_env: OPENROUTER_API_KEY
+    requests_per_minute: TODO
+    requests_per_day: TODO
+    checked_on: "2026-11-22"
 
 # Model used ONLY for the RU-P draft (Role A, task A3) and the RT back-transliteration.
 # Rules (docs/RULES.md decisions 1 and 2):
-#  - It must NOT be the same model as any entry in evaluated_models (different provider or different model).
-#  - Record the exact model string and the date of the limits you checked.
+#  - It must NOT be the same model as any entry in evaluated_models.
+#  - Gemini 3.5 Flash Lite is selected as the non-evaluated helper model.
 helper:
-  provider: groq
-  model_string: openai/gpt-oss-120b
-  api_key_env: GROQ_API_KEY
-  checked_on: 2026-11-19
-  # Groq model docs (2026-11-20): max output 65,536; reasoning_effort=low supported.
-  max_output_tokens: 4096
-  reasoning_effort: low
-  note: Must not be one of the evaluated models. # reasoning model; set a large max output
+helper:
+  provider: gemini
+  model_string: TODO
+  api_key_env: GEMINI_API_KEY
+  rpm_limit: TODO
+  checked_on: "2026-11-22"
+  note: Unresolved; must be a non-evaluated helper model approved before use.

@@ -62,12 +62,142 @@ class RuleEngineTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def test_repository_rule_files_are_header_only(self):
+    def test_repository_rule_files_load_and_validate(self):
         repository_rules = Path(__file__).resolve().parents[2] / "src" / "data" / "rules"
         tables = load_rule_tables(repository_rules)
-        self.assertEqual(tables.word_maps, {})
-        self.assertEqual(tables.regex_rules, {"RU-R": (), "RU-X": ()})
-        self.assertEqual(tables.protected_patterns, ())
+        self.assertGreater(len(tables.word_maps), 0)
+        self.assertIn("RU-R", tables.regex_rules)
+        self.assertIn("RU-X", tables.regex_rules)
+        self.assertGreater(len(tables.regex_rules["RU-R"]), 0)
+        self.assertGreater(len(tables.regex_rules["RU-X"]), 0)
+        self.assertGreater(len(tables.protected_patterns), 0)
+
+    def test_rur_operations_each_have_three_working_examples(self):
+        repository_rules = Path(__file__).resolve().parents[2] / "src" / "data" / "rules"
+        tables = load_rule_tables(repository_rules)
+
+        # R1_DROP_VOWEL (Word map)
+        for src, expected in [("jawab", "jwab"), ("sawal", "swal"), ("kitab", "ktab")]:
+            res = transform_field(src, "item-r1", "question", "RU-R", tables)
+            self.assertEqual(res.text, expected)
+            self.assertIn("R1_DROP_VOWEL", res.tokens[0].op_ids)
+
+        # R2_SHORTEN_FREQ (Word map)
+        for src, expected in [("nahin", "nhi"), ("mein", "mn"), ("bhi", "b")]:
+            res = transform_field(src, "item-r2", "question", "RU-R", tables)
+            self.assertEqual(res.text, expected)
+            self.assertIn("R2_SHORTEN_FREQ", res.tokens[0].op_ids)
+
+        # R3_CASUAL_SHORTEN (Word map)
+        for src, expected in [("lekin", "lkn"), ("hoga", "hga"), ("hogi", "hgi")]:
+            res = transform_field(src, "item-r3", "question", "RU-R", tables)
+            self.assertEqual(res.text, expected)
+            self.assertIn("R3_CASUAL_SHORTEN", res.tokens[0].op_ids)
+
+        # R4_DROP_TERMINAL_H (Regex rule 1)
+        for src, expected in [("jagah", "jaga"), ("wajah", "waja"), ("gunah", "guna")]:
+            res = transform_field(src, "item-r4", "question", "RU-R", tables)
+            self.assertEqual(res.text, expected)
+            self.assertIn("R4_DROP_TERMINAL_H", res.tokens[0].op_ids)
+
+        # R5_CONTRACTION_IYA (Regex rule 2)
+        for src, expected in [("diya", "dya"), ("liya", "lya"), ("jiya", "jya")]:
+            res = transform_field(src, "item-r5", "question", "RU-R", tables)
+            self.assertEqual(res.text, expected)
+            self.assertIn("R5_CONTRACTION_IYA", res.tokens[0].op_ids)
+
+    def test_rux_operations_each_have_three_working_examples(self):
+        repository_rules = Path(__file__).resolve().parents[2] / "src" / "data" / "rules"
+        tables = load_rule_tables(repository_rules)
+
+        # X1_X_FOR_KH (Regex rule 1)
+        for src, expected in [("khuda", "xuda"), ("khatam", "xatam"), ("khabar", "xabar")]:
+            res = transform_field(src, "item-x1", "question", "RU-X", tables)
+            self.assertEqual(res.text, expected)
+            self.assertIn("X1_X_FOR_KH", res.tokens[0].op_ids)
+
+        # X2_K_FOR_Q (Regex rule 2)
+        for src, expected in [("qalam", "kalam"), ("qanoon", "kanoon"), ("nuqta", "nukta")]:
+            res = transform_field(src, "item-x2", "question", "RU-X", tables)
+            self.assertEqual(res.text, expected)
+            self.assertIn("X2_K_FOR_Q", res.tokens[0].op_ids)
+
+        # X3_F_FOR_PH (Regex rule 3)
+        for src, expected in [("phool", "fool"), ("phal", "fal"), ("phir", "fir")]:
+            res = transform_field(src, "item-x3", "question", "RU-X", tables)
+            self.assertEqual(res.text, expected)
+            self.assertIn("X3_F_FOR_PH", res.tokens[0].op_ids)
+
+        # X4_V_FOR_W (Regex rule 4)
+        for src, expected in [("watan", "vatan"), ("wazir", "vazir"), ("wahan", "vahan")]:
+            res = transform_field(src, "item-x4", "question", "RU-X", tables)
+            self.assertEqual(res.text, expected)
+            self.assertIn("X4_V_FOR_W", res.tokens[0].op_ids)
+
+    def test_repository_protected_patterns_protect_tokens_from_rules(self):
+        repository_rules = Path(__file__).resolve().parents[2] / "src" / "data" / "rules"
+        tables = load_rule_tables(repository_rules)
+        # Check that protected tokens are not altered by RU-R or RU-X rules
+        text = "A) H2O aur CO2 ki miqdar 15 kg ya 90% hai ____"
+        res_r = transform_field(text, "item-prot", "question", "RU-R", tables)
+        res_x = transform_field(text, "item-prot", "question", "RU-X", tables)
+        for token in ["A)", "H2O", "CO2", "15", "kg", "90", "____"]:
+            self.assertIn(token, res_r.text)
+            self.assertIn(token, res_x.text)
+
+    def test_ascii_digit_pattern_does_not_protect_urdu_digits(self):
+        repository_rules = Path(__file__).resolve().parents[2] / "src" / "data" / "rules"
+        tables = load_rule_tables(repository_rules)
+        ascii_result = transform_field(
+            "15 9.25", "item-digits", "question", "RU-R", tables
+        )
+        urdu_result = transform_field(
+            "۱۵", "item-digits", "question", "RU-R", tables
+        )
+        self.assertEqual(ascii_result.text, "15 9.25")
+        self.assertIn("15", ascii_result.text)
+        urdu_tokens = tuple(
+            span.pattern_ids
+            for span in urdu_result.protected_spans
+        )
+        self.assertTrue(any("DIGIT_URDU" in ids for ids in urdu_tokens))
+
+    def test_ascii_digit_pattern_matches_only_ascii_digits(self):
+        repository_rules = Path(__file__).resolve().parents[2] / "src" / "data" / "rules"
+        tables = load_rule_tables(repository_rules)
+        ascii_pattern = next(
+            pattern.pattern
+            for pattern in tables.protected_patterns
+            if pattern.pattern_id == "DIGIT_ASCII"
+        )
+        self.assertEqual(ascii_pattern, r"\b[0-9]+(?:\.[0-9]+)?\b")
+        self.assertNotIn(r"\d", ascii_pattern)
+
+    def test_ru_x_rules_do_not_transform_nonmatching_letter_runs(self):
+        repository_rules = Path(__file__).resolve().parents[2] / "src" / "data" / "rules"
+        tables = load_rule_tables(repository_rules)
+        for src in ("alpha", "bravo", "xray", "q", "qwerty"):
+            res = transform_field(src, "item-x-boundary", "question", "RU-X", tables)
+            if src == "q":
+                self.assertEqual(res.text, "k")
+            elif src == "qwerty":
+                self.assertEqual(res.text, "kwerty")
+            else:
+                self.assertEqual(res.text, src)
+
+    def test_repository_ru_x_rules_include_x1_through_x4(self):
+        repository_rules = Path(__file__).resolve().parents[2] / "src" / "data" / "rules"
+        tables = load_rule_tables(repository_rules)
+        op_ids = frozenset(rule.op_id for rule in tables.regex_rules["RU-X"])
+        self.assertEqual(
+            op_ids,
+            frozenset({
+                "X1_X_FOR_KH",
+                "X2_K_FOR_Q",
+                "X3_F_FOR_PH",
+                "X4_V_FOR_W",
+            }),
+        )
 
     def test_map_then_ordered_regex_and_variant_equality_report(self):
         item = {

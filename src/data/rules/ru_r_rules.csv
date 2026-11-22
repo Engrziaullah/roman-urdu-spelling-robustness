@@ -1,1 +1,3 @@
 order,pattern,replacement,op_id,note
+1,"([a-zA-Z]{2,})ah",\g<1>a,R4_DROP_TERMINAL_H,Drop terminal h in ah endings (jagah->jaga; wajah->waja; gunah->guna)
+2,([a-zA-Z]+)iya,\g<1>ya,R5_CONTRACTION_IYA,Contraction of iya to ya (diya->dya; liya->lya; jiya->jya)

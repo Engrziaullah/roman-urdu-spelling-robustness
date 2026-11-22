@@ -1,1 +1,93 @@
 urdu_word,ru_p,note
+میں,mein,Function word in/into (C3)
+سے,se,Function word from/with (C3)
+کے,ke,Function word of/for oblique (C3)
+کا,ka,Function word of masculine (C3)
+کی,ki,Function word of feminine (C3)
+ہے,hai,Auxiliary verb is (C3)
+ہیں,hain,Auxiliary verb are (C3)
+نہیں,nahin,Negative particle not (C2)
+کوئی,koi,Indefinite pronoun any/someone
+ان,in,Pronoun these/them oblique
+کس,kis,Interrogative which/whom
+کیا,kya,Interrogative what (C3)
+کو,ko,Postposition to/acc (C3)
+اور,aur,Conjunction and (C3)
+نے,ne,Ergative marker
+پر,par,Postposition on/at
+سب,sab,Quantifier all/every
+یہ,yeh,Demonstrative this (C3)
+وہ,woh,Demonstrative that (C3)
+کون,kaun,Interrogative who
+جواب,jawab,Noun answer (C1)
+سوال,sawal,Noun question (C1)
+ایک,ek,Numeral one
+دو,do,Numeral two
+تین,teen,Numeral three
+چار,char,Numeral four
+پانچ,panch,Numeral five
+کب,kab,Interrogative when
+کہاں,kahan,Interrogative where
+کیسے,kaise,Interrogative how
+کتنے,kitne,Interrogative how many
+کتنی,kitni,Interrogative how many fem
+کتنا,kitna,Interrogative how much
+تھا,tha,Past tense was masc
+تھی,thi,Past tense was fem
+تھے,the,Past tense were
+ہوتا,hota,Habitual verb happens masc
+ہوتی,hoti,Habitual verb happens fem
+ہوتے,hote,Habitual verb happens pl
+گیا,gaya,Aspectual went masc
+گئی,gayi,Aspectual went fem
+گئے,gaye,Aspectual went pl
+دیا,diya,Verb gave masc
+دی,di,Verb gave fem
+دیے,diye,Verb gave pl
+لیا,liya,Verb took masc
+لی,li,Verb took fem
+لیے,liye,Postposition for
+بچے,bache,Noun children
+والدین,walidain,Noun parents
+ڈانٹ,dant,Noun scolding
+کرنسی,currency,Noun currency
+صدر,sadr,Noun president
+پاکستان,pakistan,Proper noun Pakistan
+بینک,bank,Noun bank
+شریف,shareef,Proper noun / adjective
+درست,durust,Adjective correct
+جملے,jumlay,Noun sentences
+نشان,nishan,Noun mark/sign
+نشاندہی,nishandahi,Noun identification
+کیجیے,kijiye,Imperative please do
+عام,aam,Adjective common
+خاص,khas,Adjective special
+پہلا,pehla,Ordinal first
+دوسرا,doosra,Ordinal second
+تیسرا,teesra,Ordinal third
+کتاب,kitab,Noun book
+مدد,madad,Noun help
+سمجھ,samajh,Noun understanding
+وجہ,wajah,Noun reason
+جگہ,jagah,Noun place
+گناہ,gunah,Noun sin
+خدا,khuda,Noun God
+ختم,khatam,Noun end
+خبر,khabar,Noun news
+قلم,qalam,Noun pen
+قانون,qanoon,Noun law
+نکتہ,nuqta,Noun point
+پھول,phool,Noun flower
+پھل,phal,Noun fruit
+پھر,phir,Adverb then/again
+وقت,waqt,Noun time
+وطن,watan,Noun homeland
+وزیر,wazir,Noun minister
+لیکن,lekin,Conjunction but
+بھی,bhi,Focus particle also
+والا,wala,Suffix marker masc
+والی,wali,Suffix marker fem
+والے,wale,Suffix marker pl
+ہوگا,hoga,Future verb will be masc
+ہوگی,hogi,Future verb will be fem
+ہونگے,honge,Future verb will be pl

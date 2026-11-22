@@ -20,6 +20,9 @@ def test_no_effect_is_near_zero():
     df = build({c: 0.7 for c in ["NU", "RU-P", "RU-R", "RU-X", "RT"]})
     t = mixed_table(df)
     assert len(t) == 4
+    assert set(t["model_role"]) == {"primary"}
+    assert t["converged"].all()
+    assert t["optimizer_iterations"].gt(0).all()
     assert (t["log_odds"].abs() < 0.4).all()
 
 
@@ -35,6 +38,7 @@ def test_gee_no_effect_is_near_zero():
     df = build({c: 0.7 for c in ["NU", "RU-P", "RU-R", "RU-X", "RT"]})
     t = gee_table(df)
     assert len(t) == 4
+    assert set(t["model_role"]) == {"sensitivity"}
     assert t["converged"].all()
     assert (t["log_odds"].abs() < 0.4).all()
 
@@ -45,3 +49,10 @@ def test_gee_strong_effect_has_right_sign():
     assert t.loc["RU-X", "log_odds"] < -1.5
     assert t.loc["RU-X", "hi"] < 0
     assert abs(t.loc["RU-P", "log_odds"]) < 0.5
+
+
+def test_mixed_table_is_reproducible():
+    df = build({c: 0.7 for c in ["NU", "RU-P", "RU-R", "RU-X", "RT"]}, n_items=60, seed=123)
+    t1 = mixed_table(df, seed=42)
+    t2 = mixed_table(df, seed=42)
+    pd.testing.assert_frame_equal(t1, t2)

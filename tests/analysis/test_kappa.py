@@ -101,6 +101,47 @@ def test_evaluate_kappa_sheet_missing_columns():
         evaluate_kappa_sheet(df)
 
 
+def test_evaluate_kappa_sheet_rejects_duplicate_item_condition():
+    df = pd.DataFrame({
+        "item_id": ["i1", "i1"],
+        "condition": ["RU-P", "RU-P"],
+        "rater_1": ["y", "n"],
+        "rater_2": ["y", "n"],
+    })
+    with pytest.raises(ValueError, match="duplicate item-condition"):
+        evaluate_kappa_sheet(df)
+
+
+@pytest.mark.parametrize(
+    ("rater_1", "rater_2", "message"),
+    [
+        (["y", None], ["y", "n"], "missing ratings"),
+        (["y", "maybe"], ["y", "n"], "labels outside y/n"),
+    ],
+)
+def test_evaluate_kappa_sheet_rejects_missing_or_invalid_labels(rater_1, rater_2, message):
+    df = pd.DataFrame({
+        "item_id": ["i1", "i2"],
+        "condition": ["RU-P", "RU-R"],
+        "rater_1": rater_1,
+        "rater_2": rater_2,
+    })
+    with pytest.raises(ValueError, match=message):
+        evaluate_kappa_sheet(df)
+
+
+def test_evaluate_kappa_sheet_reports_insufficient_class_variation():
+    df = pd.DataFrame({
+        "item_id": ["i1", "i2"],
+        "condition": ["RU-P", "RU-R"],
+        "rater_1": ["y", "y"],
+        "rater_2": ["y", "y"],
+    })
+    result = evaluate_kappa_sheet(df)
+    assert np.isnan(result["cohen_kappa"])
+    assert result["status"] == "UNDEFINED_NO_CLASS_VARIATION"
+
+
 def test_kappa_cli_unanimous_ratings_and_input_unchanged(tmp_path, capsys):
     sheet = tmp_path / "kappa.csv"
     sheet.write_text(
@@ -143,8 +184,5 @@ def test_kappa_cli_hand_computed_example(tmp_path, capsys):
 def test_kappa_cli_accepts_template_path(capsys):
     template = Path("annotations/kappa_template.csv")
 
-    main([str(template)])
-
-    output = capsys.readouterr().out
-    assert "Items evaluated: 4" in output
-    assert "Cohen's kappa:   undefined" in output
+    with pytest.raises(ValueError, match="Kappa sheet is empty"):
+        main([str(template)])
