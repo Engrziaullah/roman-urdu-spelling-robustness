@@ -296,6 +296,57 @@ def _ensure_mock_output_is_temporary(output_dir: Path, mock: bool) -> None:
         )
 
 
+def _items_sidecar_path(model_output_dir: Path) -> Path:
+    return model_output_dir / "ITEMS_SHA256.txt"
+
+
+def _verify_or_prepare_items_sidecar(
+    model_output_dir: Path, items_path: str | Path
+) -> str:
+    """Return items hash and enforce sidecar consistency for resumable runs."""
+    actual_hash = _normalized_items_sha256(items_path)
+    sidecar = _items_sidecar_path(model_output_dir)
+    has_results = model_output_dir.exists() and any(model_output_dir.glob("*.jsonl"))
+    if sidecar.exists():
+        try:
+            recorded = sidecar.read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            raise RunInputError(f"Cannot read items hash sidecar {sidecar}: {exc}") from exc
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", recorded):
+            raise RunInputError(
+                f"Items hash sidecar {sidecar} must contain exactly one 64-character SHA-256 hash."
+            )
+        recorded_hash = recorded.lower()
+        if recorded_hash != actual_hash:
+            raise RunInputError(
+                "Items file hash differs from the recorded sidecar for this model slug; "
+                f"recorded hash: {recorded_hash}, actual hash: {actual_hash}. "
+                "Refusing to resume to avoid mixing incompatible item sets."
+            )
+        return actual_hash
+    if has_results:
+        raise RunInputError(
+            f"Existing result files were found in {model_output_dir} but items hash sidecar "
+            f"{sidecar.name} is missing. Refusing to resume without a verified items hash."
+        )
+    return actual_hash
+
+
+def _write_items_sidecar_on_first_row(
+    model_output_dir: Path, items_hash: str, sidecar_written: bool
+) -> bool:
+    if sidecar_written:
+        return True
+    sidecar = _items_sidecar_path(model_output_dir)
+    model_output_dir.mkdir(parents=True, exist_ok=True)
+    if not sidecar.exists():
+        try:
+            sidecar.write_text(f"{items_hash}\n", encoding="utf-8", newline="\n")
+        except OSError as exc:
+            raise RunInputError(f"Cannot write items hash sidecar {sidecar}: {exc}") from exc
+    return True
+
+
 def _select_items(
     items: list[dict[str, Any]],
     conditions: Sequence[str],
@@ -395,6 +446,8 @@ def run_pipeline(
     latencies: list[float] = []
     run_ids: list[str] = []
     model_output_dir = output_path / model_config.slug
+    items_hash = _verify_or_prepare_items_sidecar(model_output_dir, items_path)
+    items_sidecar_written = _items_sidecar_path(model_output_dir).exists()
     cached = _load_existing_keys(model_output_dir)
     consecutive_failures = 0
     limiter = _RateLimiter(
@@ -500,6 +553,9 @@ def run_pipeline(
                     "latency_s": latency_s,
                     "error": error,
                 }
+                items_sidecar_written = _write_items_sidecar_on_first_row(
+                    model_output_dir, items_hash, items_sidecar_written
+                )
                 append_result(output_path, model_config.slug, run_id, row)
                 cached.add(cache_key)
                 processed_requests += 1
