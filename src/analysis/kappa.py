@@ -92,7 +92,7 @@ def kappa_with_ci(counts, item_ids, n_boot=10000, seed=42, strata_ids=None):
         ],
         axis=1,
     )
-    )
+    
     if strata_ids is None:
         item_strata = np.zeros(m, dtype=int)
     else:

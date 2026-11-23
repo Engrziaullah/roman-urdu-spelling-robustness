@@ -148,6 +148,9 @@ Keep one BibTeX entry per **verified** paper in `paper/references.bib` (key form
 | L19 | `chai2024tokenization` | 2026-11-16 | Younas |
 | L22 | `bandarkar2026scripts` | 2026-11-16 | Younas |
 | L01 | `tabassum2026urdummlu` | 2026-11-21 | Younas |
+| L04 | `khullar2025scriptgap` | 2026-11-21 | Younas |
+| L09 | `soomro2024romanurdu` | 2026-11-21 | Younas |
+| L25 | `jamil2026tokencost` | 2026-11-22 | Younas |
 
 ## 6. Day 4 literature checklist (with the claims audit in `PLAN.md`)
 
@@ -278,8 +281,9 @@ Keep one BibTeX entry per **verified** paper in `paper/references.bib` (key form
 - Allowed wording: "Soomro et al. (2024) document 19,527 naturally occurring spelling forms across 5,244 Roman Urdu words, demonstrating the empirical breadth of unstandardized orthography in user-generated text."
 - Not allowed: Claiming Soomro et al. evaluated LLM answer robustness, measured Answer Flip Rate, or evaluated multiple-choice questions.
 
-### L10 Code-Switching as a Safety Failure Mode in LLMs (RUAB) (Jamil and Rafi, AbjadNLP 2026, pp. 116-132)
+### L10 Code-Switching as a Safety Failure Mode in LLMs (RUAB) (Jamil and Rafi, AbjadNLP 2026, pp. 295-300)
 - Opened full text: 2026-11-16 (Younas). Venue: workshop paper (AbjadNLP 2026, ACL Anthology).
+- Correction 2026-11-22: the ACL Anthology record (2026.abjadnlp-1.37, DOI 10.18653/v1/2026.abjadnlp-1.37) gives pages 295-300; the earlier heading said 116-132. The "explicitly normalised" statement below was not confirmed in an independent check. Re-read the setup section of the PDF and copy the exact sentence before using that wording; until then use only "RUAB holds semantic intent constant across English, mixed and transliterated Roman Urdu conditions".
 - Authors: Waleed Jamil and Saima Rafi (Edinburgh Napier University).
 - Dataset: Roman Urdu Adversarial Benchmark (RUAB), consisting of 400 safety-relevant intents across 3 variants: Standard English, Mixed Roman Urdu, and Transliterated Roman Urdu (1,200 inputs).
 - Normalisation statement: spellings in transliterated Roman Urdu were explicitly normalised before testing to ensure uniform vocabulary.

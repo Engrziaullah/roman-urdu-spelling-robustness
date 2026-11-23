@@ -204,7 +204,7 @@ def _has_repeats(df: pd.DataFrame) -> bool:
 
 def compare_to_noise(
     df: pd.DataFrame,
-    n_boot: int = 2000,
+    n_boot: int = 10000,
     seed: int = 42,
 ) -> pd.DataFrame:
     """

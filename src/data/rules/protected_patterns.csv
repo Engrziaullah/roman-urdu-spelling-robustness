@@ -7,3 +7,4 @@ SCIENTIFIC_NOTATION,regex,"\d+(?:\.\d+)?\s*(?:x|×)\s*10\^[-+]?\d+",Scientific n
 UNIT_SYMBOLS,regex,"\b(?:kg|cm|mm|km|ms|Js|Hz|mol|cal|kcal|pH|eV|MeV|GeV)\b",Standard scientific and SI units
 CHEMICAL_FORMULA,regex,"\b(?:H2O|CO2|NaCl|O2|N2|H2|CH4|NH3|HCl|H2SO4|NaOH)\b",Standard chemical formulas
 URL_PATTERN,regex,https?://\S+,Web links and URLs
+PROTECT_KIYA,regex,\bkiya\b,"kiya (did) would collide with kya (what) under R5"
