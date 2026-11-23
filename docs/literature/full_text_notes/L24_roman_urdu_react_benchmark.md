@@ -3,22 +3,24 @@
 **Document identifier:** L24  
 **Date reviewed:** 2026-11-21  
 **Reviewer:** Younas Khan (Role C)  
-**Inspection method:** The researcher supplied and the paper text was reviewed. Independent DOI, Zenodo archive, GitHub repository, and publication venue verification remain unresolved.
+**Inspection method:** The researcher-supplied paper text was reviewed, and bibliographic metadata was checked against the Zenodo records on 2026-11-22. The supplied text still has to be compared with the Zenodo PDF 04_RomanUrdu_ReAct.pdf (md5 3b8c0761f40054db9386b44b506b4465).
 
 ---
 
 ## 1. Bibliographic Details & Metadata Status
 
 - **Full Title:** Roman Urdu Input Costs Small Local ReAct Agents up to 35 Accuracy Points: A Paired Benchmark on Clinic Questions
-- **Author:** M. Hussain (single author)
-- **Date:** November 2026 (7 November 2026)
-- **Publication / Venue Status:** Self-archived preprint / unrefereed technical report. No peer-reviewed venue or conference publication is confirmed.
-- **Identifiers & DOI Flags:**
-  - Paper DOI recorded in the supplied text: `10.5281/zenodo.24045042`
-  - A separate code/data archive DOI is mentioned; it must not be conflated with the paper DOI.
-  - The alternate DOI `10.5281/zenodo.24044983` appears in existing repository records, but its exact role and relationship are unresolved.
-  - Neither the Zenodo records nor the GitHub repository/archive has been independently verified.
-  - Publication venue and peer-review status remain unverified; do not describe the paper as peer-reviewed.
+- **Authors:** Muzammal Hussain and Maryam Khalid
+- **Date:** Published 7 November 2026, Version 1
+- **Publication / Venue Status:** Resource type Preprint (Zenodo), license CC BY 4.0. Not peer-reviewed.
+- **Identifiers & Zenodo Records (checked on 2026-11-22):**
+  - **Preprint record:** "Roman Urdu Input Costs Small Local ReAct Agents up to 35 Accuracy Points: A Paired Benchmark on Clinic Questions". Authors: Muzammal Hussain and Maryam Khalid. Published 7 November 2026, Version 1, resource type Preprint, license CC BY 4.0. File: `04_RomanUrdu_ReAct.pdf` (239.6 kB, md5 `3b8c0761f40054db9386b44b506b4465`). DOI `10.5281/zenodo.24045042` is the all-versions DOI; DOI `10.5281/zenodo.24045043` is the Version 1 DOI (Zenodo's own citation uses this one). Not peer-reviewed.
+  - **Software record:** "Roman Urdu ReAct benchmark: clinic questions in English and Roman Urdu for small local agents". Author: Muzammal Hussain. Version v1.0.0, 7 November 2026, MIT license. DOI `10.5281/zenodo.24044983` (version DOI; all-versions DOI `10.5281/zenodo.24044982`). GitHub: https://github.com/MHKhan50/roman-urdu-react-bench (tag v1.0.0).
+  - **Relationship:** The two Zenodo records are different records and link to each other: the preprint "is supplemented by" the software, and the software "is supplement to" the preprint.
+  - **Remaining open items for L24:**
+    (a) compare the supplied text with the Zenodo PDF `04_RomanUrdu_ReAct.pdf` (md5 `3b8c0761f40054db9386b44b506b4465`),
+    (b) the GitHub repository has not been opened,
+    (c) the 22.1-point versus 21.4-point difference still needs source-data checking.
 
 ---
 
@@ -26,7 +28,7 @@
 
 - **Domain & Task:** Clinical ReAct agent workflows. Small language models operating as conversational agents equipped with tool-calling capabilities to answer patient clinic queries (scheduling, triage, dosage, patient lookup).
 - **Scale:**
-  - 96 fictional clinical questions constructed from 12 parameterized question templates.
+  - 96 fictional clinical questions constructed from 12 parameterized question templates. Study content comes from the researcher-supplied text, and still has to be compared with the Zenodo PDF `04_RomanUrdu_ReAct.pdf` (md5 `3b8c0761f40054db9386b44b506b4465`).
   - Total of 3,838 scored model/tool-calling interactions.
 - **Input Conditions (Three Paired Forms):**
   1. *English:* Standard medical clinic prompt baseline.
@@ -72,10 +74,10 @@ The paper includes a post-hoc clinician audit of the benchmark questions, which 
 ## 5. Overlap and Fundamental Distinctions with Our Research
 
 ### Overlap:
-- **Potential Direct Empirical Precedent:** The supplied L24 text is the closest known prior work in repository review investigating paired Roman Urdu spelling variations and reports accuracy differences across input forms. This is not an independent bibliographic or peer-review verification.
+- **Potential Direct Empirical Precedent:** The supplied L24 text is the closest known prior work in repository review investigating paired Roman Urdu spelling variations and reports accuracy differences across input forms. Bibliographic metadata was checked against Zenodo records on 2026-11-22 (not peer-reviewed); comparison with the Zenodo PDF, GitHub inspection, and source-data checking for the 22.1 vs 21.4 pp discrepancy remain open.
 
 ### Fundamental Methodological & Scientific Distinctions:
-| Dimension | Hussain (2026) [L24] | Our Study |
+| Dimension | Hussain and Khalid (2026, preprint) [L24] | Our Study |
 |---|---|---|
 | **Task** | Clinic ReAct agent tool calling & multi-step execution | Factual knowledge examination MCQs (UrduMMLU) |
 | **Language Conditions** | 3 conditions: English, Common Roman Urdu, Chat Roman Urdu | 5 matched conditions: Native Urdu (`NU`), Standard Roman (`RU-P`), Reduced Roman (`RU-R`), English-orthography Roman (`RU-X`), and Back-transliteration (`RT`) |
@@ -91,11 +93,11 @@ The paper includes a post-hoc clinician audit of the benchmark questions, which 
 
 > [!IMPORTANT]
 > **Do NOT claim that no prior study has evaluated paired Roman Urdu spelling.**
-> Hussain (2026) has demonstrated paired spelling sensitivity in local clinic ReAct agents.
+> Hussain and Khalid (2026, preprint) has demonstrated paired spelling sensitivity in local clinic ReAct agents.
 
 - **Allowed, source-qualified gap phrasing for our manuscript:**
-  - *"While Hussain (2026) observed that informal chat spelling degraded task accuracy in small clinical ReAct agents across two Roman Urdu renderings, no prior work has isolated within-item answer flip rates across systematic, rule-governed Roman Urdu orthographic conventions on factual multiple-choice benchmarks, nor compared them against native Nastaliq (`NU`) and back-transliterated (`RT`) baselines while controlling for repeated-run noise."*
+  - *"While Hussain and Khalid (2026, preprint) observed that informal chat spelling degraded task accuracy in small clinical ReAct agents across two Roman Urdu renderings, no prior work has isolated within-item answer flip rates across systematic, rule-governed Roman Urdu orthographic conventions on factual multiple-choice benchmarks, nor compared them against native Nastaliq (`NU`) and back-transliterated (`RT`) baselines while controlling for repeated-run noise."*
 - **Disallowed gap phrasing:**
   - *"We present the first study of Roman Urdu spelling variation on language models."*
   - *"No previous work has evaluated paired Roman Urdu spelling forms."*
-  - *"Hussain (2026) measured answer flip rates across spelling conditions."*
+  - *"Hussain and Khalid (2026, preprint) measured answer flip rates across spelling conditions."*
