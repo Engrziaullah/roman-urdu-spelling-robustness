@@ -34,16 +34,20 @@ class Provider(Protocol):
         """Return response text, elapsed seconds, and provider-returned model string."""
 
 
+DEFAULT_USER_AGENT = "roman-urdu-spelling-robustness/1.0"
+
+
 def _post_json(
     url: str,
     headers: dict[str, str],
     payload: dict[str, Any],
     timeout_s: float,
 ) -> dict[str, Any]:
+    request_headers = {"User-Agent": DEFAULT_USER_AGENT, **headers}
     request = Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers=headers,
+        headers=request_headers,
         method="POST",
     )
     try:

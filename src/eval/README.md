@@ -151,6 +151,37 @@ failure. Missing combinations and invalid rates use the latest row per key.
 Unresolved errors, other duplicate keys, schema/answer problems, multiple model
 strings, and invalid rates above 5 percent make the checker exit nonzero.
 
+## 403 troubleshooting (Groq/provider access)
+
+If a real Groq smoke/run fails with HTTP 403 while list-models/auth checks look
+healthy, run the diagnosis script (reads key from environment/`.env`, never prints
+keys or Authorization headers). It sends one tiny chat-completion request per
+variant (max 8 output tokens) and prints only variant name, HTTP status, selected
+error-body fields (`message`/`type`/`code`, truncated) or a short non-JSON prefix,
+and `server`/`cf-ray` headers when present:
+
+```powershell
+python scripts/diagnose_groq.py --models configs/models.yaml
+```
+
+Variants: (a) model-1 with runner headers, (b) model-1 with an explicit
+browser-like `User-Agent`, (c) helper with runner headers, (d) one other
+chat-capable model from Groq list-models (not model-1/helper).
+
+Outcome guide:
+- **(b) 200 and (a) 403** (e.g. Cloudflare `error code: 1010`): default Python
+  `User-Agent` is blocked at the edge. Fix: send a fixed, honest `User-Agent`
+  (for example `roman-urdu-spelling-robustness/1.0`) on all provider requests in
+  `src/eval/providers.py`, rerun diagnosis to confirm 200, then continue.
+- **Model/terms/access-specific 403** (message indicates terms not accepted or
+  model/org access blocked on specific models): human action in Groq console may
+  be required. Test a few other listed chat models (one tiny request each) and
+  report statuses/families; do not change `configs/models.yaml` without explicit
+  approval.
+- **Every variant 403 with same key/org/region message**: stop and report exact
+  message fields; requires human fix (key, org, or region). Never print keys.
+
+
 ## Fresh-clone test procedure (dry-run, no API keys/results)
 
 Run from a clean clone in a temporary location (Windows PowerShell example):
