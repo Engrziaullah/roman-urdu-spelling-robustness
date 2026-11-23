@@ -199,3 +199,35 @@ def test_http_rate_limit_is_retryable_and_does_not_expose_response_body(
     assert caught.value.retryable
     assert caught.value.status_code == 429
     assert "private provider response" not in str(caught.value)
+
+def test_post_json_sets_fixed_user_agent_for_provider_requests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict = {}
+
+    class _Resp:
+        status = 200
+        headers = {}
+
+        def read(self):
+            return b'{"ok": true}'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def fake_urlopen(request, timeout=0):
+        captured["user_agent"] = request.get_header("User-agent")
+        captured["timeout"] = timeout
+        return _Resp()
+
+    monkeypatch.setattr("src.eval.providers.urlopen", fake_urlopen)
+    from src.eval.providers import _post_json
+
+    result = _post_json("https://provider.invalid", {"Content-Type": "application/json"}, {"x": 1}, 5.0)
+
+    assert result == {"ok": True}
+    assert captured["user_agent"] == "roman-urdu-spelling-robustness/1.0"
+    assert captured["timeout"] == 5.0
