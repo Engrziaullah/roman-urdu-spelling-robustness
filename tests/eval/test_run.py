@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from src.eval.config import ModelConfig, RunSettings
-from src.eval.providers import MockProvider, ProviderError
+from src.eval.providers import CompletionResult, MockProvider, ProviderError, RateLimitInfo
 from src.eval.run import RunInputError, main, read_items, run_pipeline
 from src.eval.runlog import RESULT_FIELDS
 
@@ -118,7 +118,7 @@ def test_resume_skips_already_recorded_request(tmp_path: Path) -> None:
 
         def complete(self, prompt, model_cfg, settings):
             self.calls += 1
-            return "A", 0.01, None
+            return CompletionResult(text="A", latency_s=0.01, model_string=None)
 
     provider = CountingProvider()
     first = _run(tmp_path, provider=provider, max_items=1)
@@ -140,7 +140,7 @@ def test_resume_retries_failed_rows_and_latest_attempt_becomes_authoritative(
             self.calls += 1
             if self.calls == 1:
                 raise ProviderError("temporary failure", retryable=False)
-            return "A", 0.01, None
+            return CompletionResult(text="A", latency_s=0.01, model_string=None)
 
     provider = FailOnceProvider()
     first = _run(tmp_path, provider=provider, max_items=1)
@@ -283,7 +283,7 @@ def test_retryable_failure_uses_exponential_retry(tmp_path: Path) -> None:
             self.calls += 1
             if self.calls == 1:
                 raise ProviderError("temporary", retryable=True, status_code=503)
-            return "A", 0.02, None
+            return CompletionResult(text="A", latency_s=0.02, model_string=None)
 
     provider = FlakyProvider()
     settings = _settings(max_retries=1)
@@ -322,8 +322,11 @@ def test_runner_stops_after_consecutive_final_failures(tmp_path: Path) -> None:
 
     assert summary.calls_made == 2
     assert summary.errors == 2
+    assert summary.error_count == 2
+    assert summary.answered_requests == 0
     assert summary.processed_requests == 2
-    assert summary.invalid_rate == 1
+    assert summary.invalid_answer_rate == 0.0
+    assert summary.invalid_rate == 0.0
     assert summary.stopped_after_consecutive_failures is True
 
 
@@ -336,7 +339,7 @@ def test_daily_quota_stops_before_an_unattempted_request_and_resumes(
 
         def complete(self, prompt, model_cfg, settings):
             self.calls += 1
-            return "A", 0.01, None
+            return CompletionResult(text="A", latency_s=0.01, model_string=None)
 
     provider = CountingProvider()
     model = replace(_model("groq"), requests_per_day=1)
@@ -414,6 +417,9 @@ def test_http_429_stops_the_run_without_retrying_or_looping(tmp_path: Path) -> N
     assert provider.calls == 1
     assert summary.calls_made == 1
     assert summary.errors == 1
+    assert summary.error_count == 1
+    assert summary.answered_requests == 0
+    assert summary.invalid_answer_rate == 0.0
     assert summary.stopped_after_rate_limit is True
 
 
@@ -439,3 +445,174 @@ def test_cli_mock_run_uses_fixture_and_requires_temporary_output(
     assert output["processed_requests"] == 1
     assert output["invalid_rate"] == 0
     assert not (REPO_ROOT / "results" / "raw" / "mock").exists()
+
+
+def test_short_429_wait_then_success_retries_same_request(tmp_path: Path, monkeypatch) -> None:
+    sleeps: list[float] = []
+
+    class ShortRateLimitedProvider:
+        calls = 0
+
+        def complete(self, prompt, model_cfg, settings):
+            self.calls += 1
+            if self.calls == 1:
+                raise ProviderError(
+                    "rate limited",
+                    retryable=True,
+                    status_code=429,
+                    headers={"retry-after": "2"},
+                    rate_limit=RateLimitInfo(retry_after_s=2.0),
+                )
+            return CompletionResult(
+                text="A",
+                latency_s=0.01,
+                model_string=model_cfg.model_string,
+                headers={"x-ratelimit-remaining-requests": "999", "x-ratelimit-reset-requests": "1m0s"},
+                rate_limit=RateLimitInfo(remaining_requests="999", reset_requests="1m0s"),
+            )
+
+    provider = ShortRateLimitedProvider()
+    summary = run_pipeline(
+        items_path=MOCK_ITEMS,
+        model_config=_model("groq"),
+        settings=_settings(),
+        provider=provider,
+        output_dir=tmp_path / "real-results",
+        conditions=("NU",),
+        mock=False,
+        run_log_path=tmp_path / "RUN_LOG.md",
+        run_date="2026-11-16",
+        max_items=1,
+        sleep=lambda seconds: sleeps.append(seconds),
+    )
+
+    assert provider.calls == 2
+    assert sleeps == [3.0]
+    assert summary.calls_made == 2
+    assert summary.error_count == 0
+    assert summary.answered_requests == 1
+    assert summary.invalid_answer_rate == 0.0
+    assert summary.stopped_after_rate_limit is False
+    assert summary.resume_time_utc is None
+
+
+def test_long_429_stops_with_resume_time(tmp_path: Path, monkeypatch) -> None:
+    sleeps: list[float] = []
+    monkeypatch.setattr("src.eval.run._resume_time_utc", lambda s: "2099-01-01T00:02:01Z")
+
+    class LongRateLimitedProvider:
+        calls = 0
+
+        def complete(self, prompt, model_cfg, settings):
+            self.calls += 1
+            raise ProviderError(
+                "rate limited",
+                retryable=True,
+                status_code=429,
+                headers={"retry-after": "121"},
+                rate_limit=RateLimitInfo(retry_after_s=121.0),
+            )
+
+    provider = LongRateLimitedProvider()
+    summary = run_pipeline(
+        items_path=MOCK_ITEMS,
+        model_config=_model("groq"),
+        settings=_settings(),
+        provider=provider,
+        output_dir=tmp_path / "real-results",
+        conditions=("NU",),
+        mock=False,
+        run_log_path=tmp_path / "RUN_LOG.md",
+        run_date="2026-11-16",
+        max_items=1,
+        sleep=lambda seconds: sleeps.append(seconds),
+    )
+
+    assert provider.calls == 1
+    assert sleeps == []
+    assert summary.error_count == 1
+    assert summary.answered_requests == 0
+    assert summary.invalid_answer_rate == 0.0
+    assert summary.stopped_after_rate_limit is True
+    assert summary.stopped_after_daily_quota is False
+    assert summary.resume_time_utc == "2099-01-01T00:02:01Z"
+
+
+def test_daily_limit_exhausted_stops_with_resume_time(tmp_path: Path, monkeypatch) -> None:
+    sleeps: list[float] = []
+    monkeypatch.setattr("src.eval.run._resume_time_utc", lambda s: "2099-01-02T00:00:00Z")
+
+    class DailyLimitedProvider:
+        calls = 0
+
+        def complete(self, prompt, model_cfg, settings):
+            self.calls += 1
+            raise ProviderError(
+                "daily limit",
+                retryable=True,
+                status_code=429,
+                headers={
+                    "x-ratelimit-remaining-requests": "0",
+                    "x-ratelimit-reset-requests": "24h0m0s",
+                },
+                rate_limit=RateLimitInfo(
+                    remaining_requests="0",
+                    reset_requests="24h0m0s",
+                ),
+            )
+
+    provider = DailyLimitedProvider()
+    summary = run_pipeline(
+        items_path=MOCK_ITEMS,
+        model_config=_model("groq"),
+        settings=_settings(),
+        provider=provider,
+        output_dir=tmp_path / "real-results",
+        conditions=("NU",),
+        mock=False,
+        run_log_path=tmp_path / "RUN_LOG.md",
+        run_date="2026-11-16",
+        max_items=1,
+        sleep=lambda seconds: sleeps.append(seconds),
+    )
+
+    assert provider.calls == 1
+    assert sleeps == []
+    assert summary.error_count == 1
+    assert summary.answered_requests == 0
+    assert summary.invalid_answer_rate == 0.0
+    assert summary.stopped_after_rate_limit is True
+    assert summary.stopped_after_daily_quota is True
+    assert summary.resume_time_utc == "2099-01-02T00:00:00Z"
+
+
+def test_error_rows_excluded_from_invalid_answer_rate(tmp_path: Path) -> None:
+    class MixedProvider:
+        calls = 0
+
+        def complete(self, prompt, model_cfg, settings):
+            self.calls += 1
+            if self.calls == 1:
+                return CompletionResult(text="no answer", latency_s=0.01, model_string=model_cfg.model_string)
+            raise ProviderError("temporary failure", retryable=False)
+
+    provider = MixedProvider()
+    summary = run_pipeline(
+        items_path=MOCK_ITEMS,
+        model_config=_model("groq"),
+        settings=_settings(max_consecutive_failures=5),
+        provider=provider,
+        output_dir=tmp_path / "real-results",
+        conditions=("NU",),
+        mock=False,
+        run_log_path=tmp_path / "RUN_LOG.md",
+        run_date="2026-11-16",
+        max_items=2,
+        sleep=lambda seconds: None,
+    )
+
+    assert summary.processed_requests == 2
+    assert summary.answered_requests == 1
+    assert summary.error_count == 1
+    assert summary.invalid_answer_count == 1
+    assert summary.invalid_answer_rate == 1.0

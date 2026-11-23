@@ -7,10 +7,13 @@ import pytest
 
 from src.eval.config import ModelConfig, RunSettings
 from src.eval.providers import (
+    CompletionResult,
     GeminiProvider,
     MockProvider,
     OpenAICompatibleProvider,
     ProviderError,
+    RateLimitInfo,
+    parse_rate_limit_info,
 )
 
 
@@ -45,13 +48,13 @@ def test_gemini_uses_documented_endpoint_and_payload(monkeypatch: pytest.MonkeyP
 
     def fake_post(url, headers, payload, timeout_s):
         captured.update(url=url, headers=headers, payload=payload, timeout_s=timeout_s)
-        return {
+        return ({
             "candidates": [{"content": {"parts": [{"text": "A"}]}}],
             "modelVersion": "returned-model",
-        }
+        }, {"x-test": "1"})
 
     monkeypatch.setattr("src.eval.providers._post_json", fake_post)
-    text, latency, returned_model = GeminiProvider().complete(
+    result = GeminiProvider().complete(
         "test prompt", _model("gemini"), _settings()
     )
 
@@ -65,8 +68,9 @@ def test_gemini_uses_documented_endpoint_and_payload(monkeypatch: pytest.MonkeyP
         "temperature": 0.0,
         "maxOutputTokens": 24,
     }
-    assert (text, returned_model) == ("A", "returned-model")
-    assert latency >= 0
+    assert isinstance(result, CompletionResult)
+    assert (result.text, result.model_string) == ("A", "returned-model")
+    assert result.latency_s >= 0
 
 
 @pytest.mark.parametrize(
@@ -94,13 +98,13 @@ def test_openai_compatible_adapters_use_documented_request_shape(
 
     def fake_post(url, headers, payload, timeout_s):
         captured.update(url=url, headers=headers, payload=payload, timeout_s=timeout_s)
-        return {
+        return ({
             "choices": [{"message": {"content": "B"}}],
             "model": "returned-model",
-        }
+        }, {})
 
     monkeypatch.setattr("src.eval.providers._post_json", fake_post)
-    text, _, returned_model = OpenAICompatibleProvider(endpoint).complete(
+    result = OpenAICompatibleProvider(endpoint).complete(
         "test prompt", _model(provider_name), _settings()
     )
 
@@ -111,7 +115,7 @@ def test_openai_compatible_adapters_use_documented_request_shape(
         {"role": "user", "content": "test prompt"}
     ]
     assert captured["payload"][token_field] == 24
-    assert (text, returned_model) == ("B", "returned-model")
+    assert (result.text, result.model_string) == ("B", "returned-model")
 
 
 def test_groq_uses_model_generation_overrides(
@@ -121,10 +125,10 @@ def test_groq_uses_model_generation_overrides(
 
     def fake_post(url, headers, payload, timeout_s):
         captured.update(payload=payload)
-        return {
+        return ({
             "choices": [{"message": {"content": "A"}}],
             "model": "qwen/qwen3.8-27b",
-        }
+        }, {})
 
     monkeypatch.setattr("src.eval.providers._post_json", fake_post)
     model = _model("groq")
@@ -156,10 +160,10 @@ def test_openai_compatible_provider_falls_back_to_global_token_limit(
 
     def fake_post(url, headers, payload, timeout_s):
         captured.update(payload=payload)
-        return {
+        return ({
             "choices": [{"message": {"content": "A"}}],
             "model": "returned-model",
-        }
+        }, {})
 
     monkeypatch.setattr("src.eval.providers._post_json", fake_post)
     OpenAICompatibleProvider("https://provider.invalid").complete(
@@ -173,7 +177,7 @@ def test_mock_provider_is_deterministic() -> None:
     provider = MockProvider(["B", "C"])
     model = _model("mock")
 
-    results = [provider.complete("ignored", model, _settings())[0] for _ in range(3)]
+    results = [provider.complete("ignored", model, _settings()).text for _ in range(3)]
 
     assert results == ["B", "C", "C"]
 
@@ -199,6 +203,8 @@ def test_http_rate_limit_is_retryable_and_does_not_expose_response_body(
     assert caught.value.retryable
     assert caught.value.status_code == 429
     assert "private provider response" not in str(caught.value)
+    assert caught.value.headers == {}
+    assert caught.value.rate_limit is None
 
 def test_post_json_sets_fixed_user_agent_for_provider_requests(
     monkeypatch: pytest.MonkeyPatch,
@@ -226,8 +232,9 @@ def test_post_json_sets_fixed_user_agent_for_provider_requests(
     monkeypatch.setattr("src.eval.providers.urlopen", fake_urlopen)
     from src.eval.providers import _post_json
 
-    result = _post_json("https://provider.invalid", {"Content-Type": "application/json"}, {"x": 1}, 5.0)
+    result, headers = _post_json("https://provider.invalid", {"Content-Type": "application/json"}, {"x": 1}, 5.0)
 
     assert result == {"ok": True}
+    assert isinstance(headers, dict)
     assert captured["user_agent"] == "roman-urdu-spelling-robustness/1.0"
     assert captured["timeout"] == 5.0

@@ -10,7 +10,7 @@ import sys
 import tempfile
 import time
 from dataclasses import asdict, dataclass, replace
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
@@ -25,9 +25,11 @@ from src.eval.config import (
 from src.eval.parse import parse_answer
 from src.eval.prompt import PromptTemplateError, build_prompt
 from src.eval.providers import (
+    CompletionResult,
     MockProvider,
     Provider,
     ProviderError,
+    RateLimitInfo,
     create_provider,
 )
 from src.eval.runlog import append_result, append_run_summary, read_daily_call_count
@@ -47,6 +49,8 @@ ITEM_FIELDS = {
     "notes",
 }
 CONDITIONS = {"NU", "RU-P", "RU-R", "RU-X", "RT"}
+SHORT_RATE_LIMIT_WAIT_S = 120.0
+MAX_RATE_LIMIT_WAIT_RETRIES = 5
 
 
 class RunInputError(ValueError):
@@ -60,15 +64,20 @@ class RunSummary:
     calls_made: int
     cache_hits: int
     errors: int
+    error_count: int
     processed_requests: int
+    answered_requests: int
     invalid_count: int
+    invalid_answer_count: int
     invalid_rate: float
+    invalid_answer_rate: float
     latency_mean_s: float | None
     latency_min_s: float | None
     latency_max_s: float | None
     stopped_after_consecutive_failures: bool
     stopped_after_daily_quota: bool
     stopped_after_rate_limit: bool
+    resume_time_utc: str | None = None
     schema_problems: tuple[str, ...] = ()
 
 
@@ -79,7 +88,8 @@ class _RateLimiter:
         sleep: Callable[[float], None],
         monotonic: Callable[[], float],
     ):
-        self._interval = 60.0 / requests_per_minute
+        self._base_interval = 60.0 / requests_per_minute
+        self._interval = self._base_interval
         self._sleep = sleep
         self._monotonic = monotonic
         self._last_request: float | None = None
@@ -91,6 +101,71 @@ class _RateLimiter:
             if delay > 0:
                 self._sleep(delay)
         self._last_request = self._monotonic()
+
+    def update_from_headers(self, headers: dict[str, str] | None) -> None:
+        if not headers:
+            self._interval = self._base_interval
+            return
+        lowered = {str(k).lower(): str(v) for k, v in headers.items()}
+        req_remaining = _parse_int(lowered.get("x-ratelimit-remaining-requests"))
+        req_reset = parse_reset_duration_seconds(lowered.get("x-ratelimit-reset-requests"))
+        tok_remaining = _parse_int(lowered.get("x-ratelimit-remaining-tokens"))
+        tok_reset = parse_reset_duration_seconds(lowered.get("x-ratelimit-reset-tokens"))
+        intervals = [self._base_interval]
+        if tok_remaining is not None and tok_reset is not None and tok_reset > 0:
+            if tok_remaining <= 1:
+                intervals.append(tok_reset + 1.0)
+            elif tok_remaining <= 5:
+                intervals.append(max(self._base_interval, tok_reset / max(tok_remaining - 1, 1)))
+        if req_remaining is not None and req_reset is not None and 0 < req_reset <= SHORT_RATE_LIMIT_WAIT_S:
+            if req_remaining <= 1:
+                intervals.append(req_reset + 1.0)
+        self._interval = max(intervals)
+
+
+def _parse_int(value: str | None) -> int | None:
+    if value is None:
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    try:
+        return int(float(text))
+    except ValueError:
+        return None
+
+
+def parse_reset_duration_seconds(value: str | None) -> float | None:
+    if value is None:
+        return None
+    text = value.strip().lower()
+    if not text:
+        return None
+    if re.fullmatch(r"\d+(?:\.\d+)?", text):
+        try:
+            seconds = float(text)
+        except ValueError:
+            return None
+        return seconds if seconds >= 0 else None
+    total = 0.0
+    matched = False
+    for amount, unit in re.findall(r"(\d+(?:\.\d+)?)(ms|h|m|s)", text):
+        try:
+            number = float(amount)
+        except ValueError:
+            return None
+        matched = True
+        if unit == "h":
+            total += number * 3600.0
+        elif unit == "m":
+            total += number * 60.0
+        elif unit == "s":
+            total += number
+        elif unit == "ms":
+            total += number / 1000.0
+    if not matched:
+        return None
+    return total if total >= 0 else None
 
 
 def _validate_item(row: Any, path: Path, line_number: int) -> dict[str, Any]:
@@ -263,6 +338,48 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def _resume_time_utc(wait_seconds: float) -> str:
+    seconds = max(0.0, float(wait_seconds))
+    return (
+        datetime.now(timezone.utc) + timedelta(seconds=seconds)
+    ).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _rate_limit_wait_and_resume(
+    rate_limit: RateLimitInfo | None, status_code: int | None
+) -> tuple[float | None, str | None, bool, bool]:
+    """Return (wait_s, resume_utc, daily_exhausted, should_stop)."""
+    if rate_limit is None:
+        if status_code == 429:
+            return None, None, False, True
+        return None, None, False, False
+    wait_candidates: list[float] = []
+    if rate_limit.retry_after_s is not None:
+        wait_candidates.append(rate_limit.retry_after_s)
+    req_remaining = _parse_int(rate_limit.remaining_requests)
+    req_reset = parse_reset_duration_seconds(rate_limit.reset_requests)
+    tok_remaining = _parse_int(rate_limit.remaining_tokens)
+    tok_reset = parse_reset_duration_seconds(rate_limit.reset_tokens)
+    daily_exhausted = False
+    # Groq documents remaining-requests/reset-requests as RPD.
+    if req_remaining is not None and req_remaining <= 0 and req_reset is not None:
+        daily_exhausted = True
+        wait_candidates.append(req_reset)
+    # TPM exhaustion is usually short; treat as waitable unless very long.
+    if tok_remaining is not None and tok_remaining <= 0 and tok_reset is not None:
+        wait_candidates.append(tok_reset)
+    if not wait_candidates and status_code == 429:
+        return None, None, daily_exhausted, True
+    if not wait_candidates and status_code == 503:
+        return None, None, daily_exhausted, False
+    wait_s = max(wait_candidates) if wait_candidates else None
+    if wait_s is None:
+        return None, None, daily_exhausted, status_code == 429
+    resume_utc = _resume_time_utc(wait_s)
+    should_stop = daily_exhausted or wait_s > SHORT_RATE_LIMIT_WAIT_S
+    return wait_s, resume_utc, daily_exhausted, should_stop
+
+
 def _date_text(run_date: str | None) -> str:
     if run_date is None:
         return datetime.now(timezone.utc).date().isoformat()
@@ -418,6 +535,7 @@ def run_pipeline(
         raise ValueError(f"Unsupported condition(s): {sorted(unknown)}.")
     if isinstance(repeats, bool) or not isinstance(repeats, int) or repeats < 1:
         raise ValueError("repeats must be a positive integer.")
+
     purpose = _safe_purpose(purpose)
     run_date_text = _date_text(run_date)
     output_path = Path(output_dir)
@@ -440,9 +558,10 @@ def run_pipeline(
     selected = _select_items(items, conditions, max_items, item_ids)
     calls_made = 0
     cache_hits = 0
-    errors = 0
+    error_count = 0
     processed_requests = 0
-    invalid_count = 0
+    answered_requests = 0
+    invalid_answer_count = 0
     latencies: list[float] = []
     run_ids: list[str] = []
     model_output_dir = output_path / model_config.slug
@@ -458,6 +577,7 @@ def run_pipeline(
     stop_after_failures = False
     stop_after_daily_quota = False
     stop_after_rate_limit = False
+    resume_time_utc: str | None = None
     daily_calls_made = (
         read_daily_call_count(run_log_path, model_config.slug, run_date_text)
         if not mock and run_log_path is not None
@@ -469,9 +589,10 @@ def run_pipeline(
         run_ids.append(run_id)
         run_calls = 0
         run_cache_hits = 0
-        run_errors = 0
+        run_error_count = 0
         run_processed = 0
-        run_invalid = 0
+        run_answered = 0
+        run_invalid_answers = 0
         run_latencies: list[float] = []
         for condition in conditions:
             for item in selected[condition]:
@@ -482,6 +603,7 @@ def run_pipeline(
                     continue
                 if not mock and daily_calls_made >= model_config.requests_per_day:
                     stop_after_daily_quota = True
+                    resume_time_utc = resume_time_utc or _resume_time_utc(0.0)
                     break
                 prompt, prompt_hash = build_prompt(
                     item, condition, settings.paths["prompt_template"]
@@ -492,10 +614,13 @@ def run_pipeline(
                 error: str | None = None
                 latency_s = 0.0
                 attempt = 0
+                rate_limit_wait_retries = 0
                 attempted = False
+                valid_options = [chr(ord("A") + index) for index in range(len(item["options"]))]
                 while True:
                     if not mock and daily_calls_made >= model_config.requests_per_day:
                         stop_after_daily_quota = True
+                        resume_time_utc = resume_time_utc or _resume_time_utc(0.0)
                         break
                     if not mock:
                         limiter.wait()
@@ -506,33 +631,51 @@ def run_pipeline(
                     if not mock:
                         daily_calls_made += 1
                     try:
-                        raw_output, provider_latency, _returned_model = provider.complete(
-                            prompt, model_config, settings
-                        )
-                        latency_s = max(0.0, float(provider_latency))
+                        result = provider.complete(prompt, model_config, settings)
+                        latency_s = max(0.0, float(result.latency_s))
+                        raw_output = result.text
                         if not isinstance(raw_output, str):
                             raise ProviderError(
                                 "Provider returned non-text output.", retryable=False
                             )
-                        parsed_answer, valid = parse_answer(
-                            raw_output, [chr(ord("A") + index) for index in range(len(item["options"]))]
-                        )
+                        parsed_answer, valid = parse_answer(raw_output, valid_options)
                         error = None
+                        if not mock:
+                            limiter.update_from_headers(result.headers)
                         break
                     except ProviderError as exc:
                         latency_s = max(0.0, time.perf_counter() - started)
-                        if exc.retryable and attempt < settings.max_retries:
-                            if exc.status_code == 429:
+                        if not mock:
+                            limiter.update_from_headers(exc.headers)
+                        if exc.status_code in {429, 503}:
+                            wait_s, computed_resume, daily_exhausted, should_stop = _rate_limit_wait_and_resume(
+                                exc.rate_limit, exc.status_code
+                            )
+                            if (
+                                not mock
+                                and not daily_exhausted
+                                and wait_s is not None
+                                and not should_stop
+                                and rate_limit_wait_retries < MAX_RATE_LIMIT_WAIT_RETRIES
+                            ):
+                                rate_limit_wait_retries += 1
+                                sleep(wait_s + 1.0)
+                                limiter._last_request = monotonic() - limiter._interval
+                                continue
+                            if should_stop or daily_exhausted or exc.status_code == 429:
                                 error = str(exc)
                                 stop_after_rate_limit = True
+                                if daily_exhausted:
+                                    stop_after_daily_quota = True
+                                resume_time_utc = computed_resume or _resume_time_utc(wait_s or 0.0)
                                 break
+                            # 503 without actionable rate-limit wait: use generic retryable backoff below.
+                        if exc.retryable and attempt < settings.max_retries:
                             error = str(exc)
                             sleep(settings.backoff_initial_s * (2**attempt))
                             attempt += 1
                             continue
                         error = str(exc)
-                        if exc.status_code == 429:
-                            stop_after_rate_limit = True
                         break
 
                 if not attempted:
@@ -562,15 +705,17 @@ def run_pipeline(
                 run_processed += 1
                 latencies.append(latency_s)
                 run_latencies.append(latency_s)
-                if not valid:
-                    invalid_count += 1
-                    run_invalid += 1
-                if error is not None:
-                    errors += 1
-                    run_errors += 1
-                    consecutive_failures += 1
-                else:
+                if error is None:
+                    answered_requests += 1
+                    run_answered += 1
+                    if not valid:
+                        invalid_answer_count += 1
+                        run_invalid_answers += 1
                     consecutive_failures = 0
+                else:
+                    error_count += 1
+                    run_error_count += 1
+                    consecutive_failures += 1
                 if consecutive_failures >= settings.max_consecutive_failures:
                     stop_after_failures = True
                     break
@@ -583,13 +728,16 @@ def run_pipeline(
 
         if not mock and run_log_path is not None:
             stop_reason = (
-                "rate_limit"
-                if stop_after_rate_limit
-                else "daily_quota"
+                "daily_quota"
                 if stop_after_daily_quota
+                else "rate_limit"
+                if stop_after_rate_limit
                 else "consecutive_failures"
                 if stop_after_failures
                 else "complete"
+            )
+            run_invalid_answer_rate = (
+                run_invalid_answers / run_answered if run_answered else 0.0
             )
             append_run_summary(
                 run_log_path,
@@ -599,33 +747,46 @@ def run_pipeline(
                 model_string=model_config.model_string,
                 calls_made=run_calls,
                 cache_hits=run_cache_hits,
-                errors=run_errors,
-                invalid_rate=run_invalid / run_processed if run_processed else 0.0,
+                errors=run_error_count,
+                invalid_rate=run_invalid_answer_rate,
                 latency_mean_s=(
                     sum(run_latencies) / len(run_latencies) if run_latencies else None
                 ),
                 latency_min_s=min(run_latencies) if run_latencies else None,
                 latency_max_s=max(run_latencies) if run_latencies else None,
                 stop_reason=stop_reason,
+                error_count=run_error_count,
+                answered_requests=run_answered,
+                invalid_answer_count=run_invalid_answers,
+                invalid_answer_rate=run_invalid_answer_rate,
+                resume_time_utc=resume_time_utc,
             )
         if stop_after_failures or stop_after_daily_quota or stop_after_rate_limit:
             break
 
+    overall_invalid_answer_rate = (
+        invalid_answer_count / answered_requests if answered_requests else 0.0
+    )
     return RunSummary(
         model_slug=model_config.slug,
         run_ids=tuple(run_ids),
         calls_made=calls_made,
         cache_hits=cache_hits,
-        errors=errors,
+        errors=error_count,
+        error_count=error_count,
         processed_requests=processed_requests,
-        invalid_count=invalid_count,
-        invalid_rate=invalid_count / processed_requests if processed_requests else 0.0,
+        answered_requests=answered_requests,
+        invalid_count=invalid_answer_count,
+        invalid_answer_count=invalid_answer_count,
+        invalid_rate=overall_invalid_answer_rate,
+        invalid_answer_rate=overall_invalid_answer_rate,
         latency_mean_s=sum(latencies) / len(latencies) if latencies else None,
         latency_min_s=min(latencies) if latencies else None,
         latency_max_s=max(latencies) if latencies else None,
         stopped_after_consecutive_failures=stop_after_failures,
         stopped_after_daily_quota=stop_after_daily_quota,
         stopped_after_rate_limit=stop_after_rate_limit,
+        resume_time_utc=resume_time_utc,
     )
 
 

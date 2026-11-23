@@ -53,8 +53,24 @@ official settings and adding its key to the local `.env`, run:
 python -m src.eval.run --model-slug model-1 --items data/processed/items_nu.jsonl --conditions NU --max-items 20 --purpose smoke
 ```
 
+`scripts/run_nu.ps1` performs the recommended gate automatically: it checks that
+`.env` is git-ignored, runs the Groq model-existence check, executes the smoke in
+a temporary folder outside `results/raw/`, and stops before the full NU run if
+the gate fails. Smoke gate (after retries): all 20 requests must end with an
+answer (`error_count == 0`, no provider-error rows), invalid-answer rate among
+answered requests must be <= 5%, no answer may be empty, and every recorded
+`model_string` must equal the configured one. Provider-error rows are excluded
+from the invalid-answer rate and reported separately.
+
 The 20 saved rows use the normal cache key. A subsequent full NU run skips these
 same item/condition/repeat keys; they remain valid part of the full results.
+If the smoke gate fails, diagnose from the smoke JSONL rows: for
+reasoning-capable models (including `qwen/qwen3.8-27b`), a common cause is
+truncated answers from an insufficient output-token budget. Raise **only
+model-1** `max_output_tokens` in `configs/models.yaml` (and use a
+`reasoning_effort` option only when the provider's official documentation
+confirms it). Retry at most 3 smoke attempts, each in a fresh temporary folder,
+then stop and report if the gate still fails.
 
 ## Full NU run, per model
 
@@ -91,10 +107,17 @@ A latest row with an error is retried on resume and appended as another row; a
 latest row with `error: null` is skipped. Older attempts are retained, and result
 checking distinguishes retry history from duplicate successful requests.
 
-HTTP 429 and the configured daily quota stop a real run cleanly. Consecutive
-non-429 final failures also stop at `max_consecutive_failures`. A stopped run
-writes its completed rows and a run-log summary. Under the agreed cache rule, a
-saved error row is retried on resume when it is the latest attempt.
+Rate-limit handling (real runs): on HTTP 429/503 the runner reads `retry-after`
+and rate-limit headers when present. If the wait is short (<= 120 seconds), it
+sleeps `wait + 1` second and retries the same request (up to 5 wait-retries per
+request). If daily limits are exhausted (e.g. request-remaining indicates RPD
+exhaustion), or the required wait is longer than 120 seconds, the run stops
+cleanly, computes/writes the earliest UTC resume time in the run summary, and
+does not loop. Consecutive non-rate-limit final failures still stop at
+`max_consecutive_failures`. Stopped runs write completed rows and a run-log
+summary. Provider-error rows are counted as `error_count` and excluded from the
+invalid-answer rate (invalid-answer rate is computed over answered requests
+only).
 
 ## Noise-subset repeats
 
@@ -150,6 +173,19 @@ latest row succeeds; it remains visible in the report but is not a Gate G3
 failure. Missing combinations and invalid rates use the latest row per key.
 Unresolved errors, other duplicate keys, schema/answer problems, multiple model
 strings, and invalid rates above 5 percent make the checker exit nonzero.
+
+
+## Rate-limit probing
+
+`scripts/probe_limits.py` (reads the Groq key from environment/`.env`, never
+prints keys or Authorization/request headers) performs one `GET /openai/v1/models`
+and one tiny chat-completion request per target (model-1, helper, and up to 3
+other chat-capable models from the list). It prints only: model string, HTTP
+status, `retry-after` (if present), numeric rate-limit headers (limit/remaining/
+reset for requests and tokens, if present), and prompt/completion token counts
+from response `usage`. Use it to collect header-verified limits and estimate
+effective rate/days; real per-request token usage for NU prompts may differ from
+the tiny probe.
 
 ## 403 troubleshooting (Groq/provider access)
 
