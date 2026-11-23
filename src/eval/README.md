@@ -1,10 +1,21 @@
-# Evaluation runner
+﻿# Evaluation runner
 
 Run commands from the repository root with the project's Python 3.10 environment.
 The runner reads JSONL items and writes one result row per request to the configured
 `results/raw/<model_slug>/` directory. Every input and output file is UTF-8; JSONL
 keeps Urdu readable. Mock output must use a temporary directory and never belongs
 in `results/raw/`.
+
+## Freeze hash (FROZEN.md line)
+
+For non-NU real runs, `data/processed/FROZEN.md` must contain the exact hash line
+for the frozen items file (UTF-8 text, CRLF normalized to LF, same as the runner):
+
+```powershell
+python -m src.eval.freeze_hash data/processed/items_v1.jsonl
+```
+
+Output format (exact): `items_v1.jsonl sha256: <64 hex chars>`.
 
 ## Dry-run
 
@@ -44,6 +55,18 @@ python -m src.eval.run --model-slug model-3 --items data/processed/items_nu.json
 Rows go to `results/raw/<model_slug>/<run_id>.jsonl`. Real runs append a summary
 to `results/RUN_LOG.md`; mock and dry runs do not.
 
+## Full main run (all conditions, after freeze)
+
+After `data/processed/items_v1.jsonl` and `data/processed/FROZEN.md` exist and the
+FROZEN hash matches, run per model (exact command pattern):
+
+```powershell
+python -m src.eval.run --model-slug model-1 --items data/processed/items_v1.jsonl --conditions NU,RU-P,RU-R,RU-X,RT --purpose main
+```
+
+Repeat for `model-2` and `model-3` when their configs/keys are ready. `--noise-subset`
+cannot be combined with `--max-items`.
+
 ## Resume after interruption
 
 Rerun the same command with the same model slug, input, conditions, and repeat
@@ -69,7 +92,13 @@ python -m src.eval.make_noise_subset --items data/processed/items_nu.jsonl
 
 The selector stores six IDs per domain from `sample_rank <= 200` in
 `configs/config.yaml`. It refuses to replace a non-empty ID list unless `--force`
-is supplied. Run the three repeats for one model with:
+is supplied.
+
+Configured noise subset (`configs/config.yaml`): 30 item IDs, `repeats: 3`. To run
+the noise repeats for one model (all 5 conditions), use the same command; the cache
+skips completed keys, so rerunning resumes and fills any missing repeats (including
+repeats 2 and 3 on the 30 noise IDs if repeat 1 is already present). `--noise-subset`
+sets repeats from config (CLI `--repeats` is not used in this mode):
 
 ```powershell
 python -m src.eval.run --model-slug model-1 --items data/processed/items_v1.jsonl --conditions NU,RU-P,RU-R,RU-X,RT --noise-subset
@@ -107,6 +136,27 @@ latest row succeeds; it remains visible in the report but is not a Gate G3
 failure. Missing combinations and invalid rates use the latest row per key.
 Unresolved errors, other duplicate keys, schema/answer problems, multiple model
 strings, and invalid rates above 5 percent make the checker exit nonzero.
+
+## Fresh-clone test procedure (dry-run, no API keys/results)
+
+Run from a clean clone in a temporary location (Windows PowerShell example):
+
+```powershell
+git clone <repo-url> roman-urdu-spelling-robustness-fresh
+cd roman-urdu-spelling-robustness-fresh
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m pytest -q
+python -m src.eval.run --model-slug model-1 --items data/processed/items_nu.jsonl --conditions NU --max-items 20 --dry-run
+python -m src.eval.plan_runs --items data/processed/items_nu.jsonl --conditions NU,RU-P,RU-R,RU-X,RT
+python -m src.eval.check_results --results-dir results/raw --items data/processed/items_nu.jsonl --conditions NU
+```
+
+Notes: dry-run and planner make no network calls. `check_results` on an empty/missing
+results set will report missing combinations (expected before real runs). Real provider
+runs require filled model configs, keys in local `.env` (never committed), and gate/freeze
+conditions described above.
 
 ## Answer parsing and provider references
 
