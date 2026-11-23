@@ -15,7 +15,21 @@ for the frozen items file (UTF-8 text, CRLF normalized to LF, same as the runner
 python -m src.eval.freeze_hash data/processed/items_v1.jsonl
 ```
 
+To hash a committed git object without relying on working-tree line endings or
+PowerShell text pipelines, read bytes in binary mode via git (no shell pipe):
+
+```powershell
+python -m src.eval.freeze_hash --git-ref origin/main data/processed/items_v1.jsonl
+```
+
 Output format (exact): `items_v1.jsonl sha256: <64 hex chars>`.
+
+**PowerShell pitfall (hashing):** do not compute/compare hashes through PowerShell
+pipes such as `git show ... | python ...` or by capturing output with `Out-String`,
+because Windows PowerShell 5.1 can re-encode UTF-8/Urdu bytes and produce a wrong
+hash. Compute hashes in Python using binary reads
+(`Path.read_bytes()` / `open(..., 'rb')`) or `subprocess.run(..., capture_output=True).stdout`,
+or use `python -m src.eval.freeze_hash [--git-ref <ref>] <file>`.
 
 ## Dry-run
 

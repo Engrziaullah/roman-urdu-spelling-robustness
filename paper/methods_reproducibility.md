@@ -7,7 +7,7 @@
 - Primary outcome: answer instability (flip rate) across Roman Urdu spelling variants; NU vs Roman Urdu accuracy gap is secondary/confirmatory (`README.md`, `docs/PLAN.md`).
 - Conditions: NU, RU-P, RU-R, RU-X, RT (5 matched versions per item; `docs/RULES.md`, `docs/CONTRACTS.md`).
 - Planned sample: 500 UrduMMLU items × 5 conditions = 2,500 item-condition rows (target, per `docs/CONTRACTS.md`/`README.md`).
-- Current processed NU file: `data/processed/items_nu.jsonl` (500 rows observed on `origin/main` at hash `6ca8f229586a1c5c1c551166e7a6cdd36e66f2f22cf314c0f8a2cb3c4741b74d`, normalized CRLF→LF SHA-256; 100/domain, ranks 1–500 contiguous, first 200 = 40/domain, 4 options each). Final frozen multi-condition file `data/processed/items_v1.jsonl` and `data/processed/FROZEN.md`: **[TBD after freeze/G2]**.
+- Current processed NU file: `data/processed/items_nu.jsonl` (500 rows observed on `origin/main`/HEAD/working tree with matching normalized content, binary-read CRLF→LF SHA-256 `2b3b4c9dfd12d97a5df285019ada4206d89e8d83fc2bd9004c1836d7b33cad73`; 100/domain, ranks 1–500 contiguous, first 200 = 40/domain, 4 options each). Final frozen multi-condition file `data/processed/items_v1.jsonl` and `data/processed/FROZEN.md`: **[TBD after freeze/G2]**.
 
 ## 2. Source data
 - Source dataset: UrduMMLU (MBZUAI/UrduMMLU), as recorded in `README.md` and `data/interim/schema_report.md`.
