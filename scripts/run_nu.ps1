@@ -117,7 +117,7 @@ print(json.dumps(summary, ensure_ascii=False))
         return ($text | ConvertFrom-Json)
     }
 
-    function Get-SmokeEvaluation([string]$ResultsDir, [string]$Slug, [string]$ConfiguredModelString, [string]$RunDate) {
+    function Get-SmokeEvaluation([string]$ResultsDir, [string]$Slug, [string]$ConfiguredModelString, [string]$RunDate, [int]$ExpectedRequests = 20) {
         $py = @"
 import json, sys
 from pathlib import Path
@@ -125,6 +125,7 @@ results_dir = Path(sys.argv[1])
 slug = sys.argv[2]
 configured = sys.argv[3]
 run_date = sys.argv[4]
+expected_requests = int(sys.argv[5]) if len(sys.argv) > 5 else 20
 path = results_dir / slug / f'{run_date}_smoke_r1.jsonl'
 rows = []
 if path.exists():
@@ -137,10 +138,12 @@ for idx, row in enumerate(rows):
     key = (row.get('item_id'), row.get('condition'), row.get('repeat'))
     latest[key] = (idx, row)
 effective = [v[1] for v in sorted(latest.values(), key=lambda x: x[0])]
-invalid = [r for r in effective if r.get('valid') is not True]
-empty = [r for r in effective if not isinstance(r.get('raw_output'), str) or r.get('raw_output','').strip() == '']
-mismatch = [r for r in effective if r.get('model_string') != configured]
-invalid_rate = (len(effective) - sum(1 for r in effective if r.get('valid') is True)) / len(effective) if effective else 1.0
+error_rows = [r for r in effective if r.get('error') is not None]
+answered = [r for r in effective if r.get('error') is None]
+invalid_answer_rows = [r for r in answered if r.get('valid') is not True]
+empty = [r for r in answered if not isinstance(r.get('raw_output'), str) or r.get('raw_output','').strip() == '']
+mismatch = [r for r in answered if r.get('model_string') != configured]
+invalid_answer_rate = (len(invalid_answer_rows) / len(answered)) if answered else 1.0
 
 def sample(rows_in, n=3):
     out = []
@@ -157,7 +160,7 @@ def sample(rows_in, n=3):
 
 problem_rows = []
 seen = set()
-for group in (invalid, empty, mismatch):
+for group in (error_rows, invalid_answer_rows, empty, mismatch):
     for r in group:
         rid = (r.get('item_id'), r.get('repeat'), r.get('condition'))
         if rid not in seen:
@@ -165,20 +168,31 @@ for group in (invalid, empty, mismatch):
             problem_rows.append(r)
 if not problem_rows:
     problem_rows = effective
+passed = (
+    len(effective) == expected_requests
+    and len(error_rows) == 0
+    and len(answered) == expected_requests
+    and invalid_answer_rate <= 0.05
+    and len(empty) == 0
+    and len(mismatch) == 0
+)
 result = {
     'path': str(path),
     'effective_rows': len(effective),
-    'invalid_rate': invalid_rate,
+    'answered_requests': len(answered),
+    'error_count': len(error_rows),
+    'invalid_answer_count': len(invalid_answer_rows),
+    'invalid_answer_rate': invalid_answer_rate,
     'empty_answers': len(empty),
     'model_string_mismatches': len(mismatch),
-    'recorded_model_strings': sorted({str(r.get('model_string')) for r in effective}),
+    'recorded_model_strings': sorted({str(r.get('model_string')) for r in answered}),
     'configured_model_string': configured,
-    'pass': (len(effective) > 0 and invalid_rate <= 0.05 and len(empty) == 0 and len(mismatch) == 0),
+    'pass': passed,
     'sample_raw_outputs': sample(problem_rows, 3),
 }
 print(json.dumps(result, ensure_ascii=False))
 "@
-        $json = & python -c $py $ResultsDir $Slug $ConfiguredModelString $RunDate 2>&1
+        $json = & python -c $py $ResultsDir $Slug $ConfiguredModelString $RunDate $ExpectedRequests 2>&1
         $text = ($json | Out-String)
         if ($LASTEXITCODE -ne 0) {
             Write-Host $text
@@ -186,6 +200,7 @@ print(json.dumps(result, ensure_ascii=False))
         }
         return ($text | ConvertFrom-Json)
     }
+
 
     Write-Host "== run_nu.ps1 =="
     Write-Host "Repo root: $RepoRoot"
@@ -277,17 +292,19 @@ print(json.dumps(result, ensure_ascii=False))
         Write-Host $smokeRunText
         Assert-LastExit "smoke run"
         $smokeResultsDir = if ($Mock) { $mockOutputDir } else { $tempSmokeDir }
-        $eval = Get-SmokeEvaluation -ResultsDir $smokeResultsDir -Slug $ModelSlug -ConfiguredModelString $expectedRecordedModelString -RunDate $runDate
-        Write-Host ("Smoke invalid_rate: {0:P2}" -f [double]$eval.invalid_rate)
+        $eval = Get-SmokeEvaluation -ResultsDir $smokeResultsDir -Slug $ModelSlug -ConfiguredModelString $expectedRecordedModelString -RunDate $runDate -ExpectedRequests 20
+        Write-Host ("Smoke answered_requests: {0}" -f $eval.answered_requests)
+        Write-Host ("Smoke error_count: {0}" -f $eval.error_count)
+        Write-Host ("Smoke invalid_answer_rate (among answered): {0:P2}" -f [double]$eval.invalid_answer_rate)
         Write-Host ("Smoke empty_answers: {0}" -f $eval.empty_answers)
         Write-Host ("Smoke model_string_mismatches: {0}" -f $eval.model_string_mismatches)
         Write-Host ("Smoke recorded_model_strings: {0}" -f (($eval.recorded_model_strings | ConvertTo-Json -Compress)))
         if (-not $eval.pass) {
             Write-Host "Smoke criteria FAILED. Sample raw outputs (up to 3):"
             ($eval.sample_raw_outputs | ConvertTo-Json -Depth 6)
-            throw "Smoke criteria failed (require invalid_rate <= 5%, no empty answers, recorded model_string == configured). Stopping before full NU run."
+            throw "Smoke criteria failed (require all 20 answered after retries, error_count == 0, invalid_answer_rate among answered <= 5%, no empty answers, recorded model_string == configured). Stopping before full NU run."
         }
-        Write-Host "Smoke criteria OK (invalid_rate <= 5%, no empty answers, model_string matches)."
+        Write-Host "Smoke criteria OK (all 20 answered, error_count == 0, invalid_answer_rate among answered <= 5%, no empty answers, model_string matches)."
         if (-not $Mock) {
             Write-Host "Smoke rows written outside results/raw: $tempSmokeDir"
         }

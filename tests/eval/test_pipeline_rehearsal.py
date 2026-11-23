@@ -11,6 +11,7 @@ import pytest
 from src.eval.check_results import check_results
 from src.eval.config import ModelConfig
 from src.eval.run import RunInputError, RunSettings, run_pipeline
+from src.eval.providers import CompletionResult
 from src.eval.runlog import RESULT_FIELDS
 
 
@@ -78,7 +79,7 @@ class UrduMockProvider:
     def complete(self, prompt, model_cfg, settings):
         self.calls += 1
         answer = "E" if "five-option" in prompt else "A"
-        return f"جواب {answer}", 0.01, model_cfg.model_string
+        return CompletionResult(text=f"\u062c\u0648\u0627\u0628 {answer}", latency_s=0.01, model_string=model_cfg.model_string)
 
 
 def test_pipeline_rehearsal_guards_five_options_resume_and_checker(

@@ -105,6 +105,11 @@ def append_run_summary(
     latency_min_s: float | None,
     latency_max_s: float | None,
     stop_reason: str = "complete",
+    error_count: int | None = None,
+    answered_requests: int | None = None,
+    invalid_answer_count: int | None = None,
+    invalid_answer_rate: float | None = None,
+    resume_time_utc: str | None = None,
 ) -> None:
     """Append a Markdown summary for a real run."""
     output = Path(path)
@@ -114,11 +119,21 @@ def append_run_summary(
     mean = "n/a" if latency_mean_s is None else f"{latency_mean_s:.4f}"
     minimum = "n/a" if latency_min_s is None else f"{latency_min_s:.4f}"
     maximum = "n/a" if latency_max_s is None else f"{latency_max_s:.4f}"
+    ec = errors if error_count is None else error_count
     line = (
         f"- {date_utc} | `{run_id}` | `{model_slug}` (`{model_string}`): "
-        f"calls={calls_made}, cache_hits={cache_hits}, errors={errors}, "
+        f"calls={calls_made}, cache_hits={cache_hits}, errors={ec}, "
         f"invalid_rate={invalid_rate:.4f}, latency_s mean/min/max="
-        f"{mean}/{minimum}/{maximum}, stop_reason={stop_reason}\n"
+        f"{mean}/{minimum}/{maximum}, stop_reason={stop_reason}"
     )
+    if answered_requests is not None:
+        line += f", answered={answered_requests}"
+    if invalid_answer_count is not None:
+        line += f", invalid_answers={invalid_answer_count}"
+    if invalid_answer_rate is not None:
+        line += f", invalid_answer_rate={invalid_answer_rate:.4f}"
+    if resume_time_utc:
+        line += f", resume_time_utc={resume_time_utc}"
+    line += "\n"
     with output.open("a", encoding="utf-8", newline="\n") as file:
         file.write(line)
