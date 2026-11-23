@@ -12,6 +12,8 @@ Both versions and the count of excluded items are reported.
 import numpy as np
 import pandas as pd
 
+from .bootstrap import bootstrap_mean_ci
+
 VARIANTS = ["RU-P", "RU-R", "RU-X"]
 PAIRS = [("RU-P", "RU-R"), ("RU-P", "RU-X"), ("RU-R", "RU-X")]
 
@@ -26,21 +28,40 @@ def flips_table(df, valid_only=False):
                   If False, treat invalid answers as a distinct category ('INVALID').
     """
     main = df[(df["repeat"] == 1) & (df["condition"].isin(VARIANTS))].copy()
-    
+    keys = ["model_slug", "item_id"]
+    if main.duplicated(keys + ["condition"]).any():
+        raise ValueError("Duplicate model/item/condition rows in main-run variant predictions.")
+
+    if "domain" in main.columns:
+        domain_counts = main.groupby(keys, dropna=False)["domain"].nunique(dropna=False)
+        if (domain_counts > 1).any():
+            raise ValueError("An item has conflicting domain values across conditions.")
+    condition_counts = main.groupby(keys)["condition"].nunique()
+    if (condition_counts != len(VARIANTS)).any():
+        raise ValueError("Each item must have exactly one main-run row for every Roman Urdu variant.")
+
     if valid_only:
-        # Keep only items where all three variants are valid
         valid_counts = main.groupby(["model_slug", "item_id"])["valid"].transform("sum")
         main = main[valid_counts == len(VARIANTS)].copy()
-        if main.empty:
-            raise ValueError("No items found with valid answers across all variants")
         main["ans"] = main["parsed_answer"]
     else:
         main["ans"] = main["parsed_answer"].where(main["valid"], "INVALID")
 
-    wide = main.pivot(index=["model_slug", "item_id"], columns="condition", values="ans")
+    if main.empty:
+        columns = ["model_slug", "item_id", *VARIANTS]
+        if "domain" in df.columns:
+            columns.append("domain")
+        columns.extend([f"flip_{a}_{b}" for a, b in PAIRS])
+        columns.extend(["flip_pairs", "flip_any"])
+        return pd.DataFrame(columns=columns)
+
+    wide = main.pivot(index=keys, columns="condition", values="ans")
     if wide[VARIANTS].isna().any().any():
         raise ValueError("Kisi item ka koi variant missing hai")
     wide = wide.reset_index()
+    if "domain" in main.columns:
+        domains = main.drop_duplicates(keys).loc[:, keys + ["domain"]]
+        wide = wide.merge(domains, on=keys, how="left", validate="one_to_one")
 
     pair_cols = []
     for a, b in PAIRS:
@@ -57,18 +78,22 @@ def flip_rates_table(flips, n_boot=10000, seed=42):
     cols = {f"{a} vs {b}": f"flip_{a}_{b}" for a, b in PAIRS}
     cols["any"] = "flip_any"
     rows = []
-    for model, g in flips.groupby("model_slug"):
+    for group_index, (model, g) in enumerate(flips.groupby("model_slug", sort=True)):
         n = len(g)
-        rng = np.random.default_rng(seed)
-        idx = rng.integers(0, n, size=(n_boot, n))
         for name, col in cols.items():
             x = g[col].to_numpy(dtype=float)
-            boot = x[idx].mean(axis=1)
+            strata = g["domain"].to_numpy() if "domain" in g.columns else None
+            if n:
+                ci_low, ci_high = bootstrap_mean_ci(
+                    x, n_boot=n_boot, seed=seed + group_index, strata=strata
+                )
+            else:
+                ci_low = ci_high = np.nan
             rows.append({
                 "model_slug": model, "variant_pair": name, "n": n,
                 "flip_rate": x.mean(),
-                "ci_low": np.percentile(boot, 2.5),
-                "ci_high": np.percentile(boot, 97.5),
+                "ci_low": ci_low,
+                "ci_high": ci_high,
             })
     return pd.DataFrame(rows)
 
@@ -89,25 +114,31 @@ def dual_flip_rates_table(df, n_boot=10000, seed=42):
         cols = {f"{a} vs {b}": f"flip_{a}_{b}" for a, b in PAIRS}
         cols["any"] = "flip_any"
         
-        for model, g in f.groupby("model_slug"):
+        for model in total_per_model:
+            g = f[f["model_slug"] == model]
             n = len(g)
             n_total = total_per_model.get(model, n)
             n_excluded = n_total - n
-            rng = np.random.default_rng(seed)
-            idx = rng.integers(0, n, size=(n_boot, n))
             
             for pair_name, col in cols.items():
                 x = g[col].to_numpy(dtype=float)
-                boot = x[idx].mean(axis=1)
+                strata = g["domain"].to_numpy() if "domain" in g.columns else None
+                if n:
+                    ci_low, ci_high = bootstrap_mean_ci(
+                        x, n_boot=n_boot, seed=seed, strata=strata
+                    )
+                else:
+                    ci_low = ci_high = np.nan
                 rows.append({
                     "model_slug": model,
                     "subset": subset_name,
                     "variant_pair": pair_name,
                     "n": n,
+                    "n_total": n_total,
                     "n_excluded": n_excluded,
                     "invalid_rate": n_excluded / n_total if n_total > 0 else 0.0,
-                    "flip_rate": x.mean(),
-                    "ci_low": np.percentile(boot, 2.5),
-                    "ci_high": np.percentile(boot, 97.5),
+                    "flip_rate": x.mean() if n else np.nan,
+                    "ci_low": ci_low,
+                    "ci_high": ci_high,
                 })
     return pd.DataFrame(rows)

@@ -36,3 +36,12 @@ def test_all_correct_ci_is_one():
     t = accuracy_table(make_df([True] * 20, [True] * 20), n_boot=200)
     r = t.iloc[0]
     assert r["ci_low"] == 1.0 and r["ci_high"] == 1.0
+
+
+def test_domain_stratified_accuracy_ci_preserves_domain_weights():
+    df = make_df([False] * 4 + [True] * 4, [True] * 8)
+    df["domain"] = ["d0"] * 4 + ["d1"] * 4
+    result = accuracy_table(df, n_boot=500).iloc[0]
+    assert result["accuracy"] == 0.5
+    assert result["ci_low"] == 0.5
+    assert result["ci_high"] == 0.5
