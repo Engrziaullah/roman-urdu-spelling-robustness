@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 from src.analysis.flips import flips_table, flip_rates_table, dual_flip_rates_table
 
 
@@ -39,6 +40,26 @@ def test_flip_counts_valid_only():
     assert f.loc["i1", "flip_pairs"] == 0
     assert f.loc["i2", "flip_pairs"] == 2
     assert f.loc["i3", "flip_pairs"] == 3
+
+
+def test_valid_only_all_invalid_reports_zero_items():
+    df = build({"i1": (None, None, None)})
+    rates = dual_flip_rates_table(df, n_boot=20)
+    valid = rates[rates["subset"] == "valid_only"]
+    assert (valid["n"] == 0).all()
+    assert valid["flip_rate"].isna().all()
+    assert (valid["n_excluded"] == 1).all()
+
+
+def test_duplicate_or_missing_variant_rows_are_rejected():
+    df = build({"i1": ("A", "A", "A")})
+    duplicate = pd.concat([df, df.iloc[[0]]], ignore_index=True)
+    with pytest.raises(ValueError, match="Duplicate"):
+        flips_table(duplicate)
+
+    missing = df[df["condition"] != "RU-X"]
+    with pytest.raises(ValueError, match="every Roman Urdu variant"):
+        flips_table(missing)
 
 
 def test_flip_rates():
