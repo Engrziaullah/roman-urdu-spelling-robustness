@@ -19,6 +19,7 @@ DEFAULT_OUTPUT = Path("data/interim/schema_report.md")
 CARD_URL = f"https://huggingface.co/datasets/{REPO_ID}/raw/main/README.md"
 INFO_URL = f"https://huggingface.co/api/datasets/{REPO_ID}"
 SPLITS_URL = f"https://datasets-server.huggingface.co/splits?dataset={REPO_ID}"
+SIZE_URL = f"https://datasets-server.huggingface.co/size?dataset={REPO_ID}"
 
 
 def load_dataset_records(local_path: Path) -> tuple[list[dict[str, Any]], str]:
@@ -100,33 +101,67 @@ def fetch_text(url: str, timeout: int = 15) -> str:
 
 
 def get_hub_metadata() -> tuple[str, str, str]:
-    """Return revision, split summary and license/card text; failures are explicit."""
+    """Return revision, split summary and license/card text."""
     revision = "NOT VERIFIED (Hugging Face API unavailable)"
     split_summary = "NOT VERIFIED (Hugging Face dataset-server API unavailable)"
     license_text = "NOT VERIFIED (dataset card could not be fetched)"
+
     try:
         info = json.loads(fetch_text(INFO_URL))
         revision = str(info.get("sha") or revision)
         card_data = info.get("cardData") or {}
         license_id = card_data.get("license")
         if license_id:
-            license_text = f"Dataset-card metadata license identifier: `{license_id}`"
+            license_text = (
+                f"Dataset-card metadata license identifier: `{license_id}`"
+            )
     except Exception as exc:
         revision += f"\n  - Detail: `{type(exc).__name__}: {exc}`"
 
+    split_entries = []
+    size_entries = []
+
     try:
-        splits = json.loads(fetch_text(SPLITS_URL))
-        entries = splits.get("splits", [])
-        if entries:
-            split_summary = "; ".join(
-                f"{item.get('split', 'unknown')} ({item.get('num_examples', 'unknown')} rows; "
-                f"config={item.get('config', 'default')})"
-                for item in entries
-            )
-        else:
-            split_summary = "No split entries returned by the dataset-server API."
+        splits_data = json.loads(fetch_text(SPLITS_URL))
+        split_entries = splits_data.get("splits", [])
     except Exception as exc:
-        split_summary += f"\n  - Detail: `{type(exc).__name__}: {exc}`"
+        split_error = f"{type(exc).__name__}: {exc}"
+    else:
+        split_error = None
+
+    try:
+        size_data = json.loads(fetch_text(SIZE_URL))
+        size_entries = (size_data.get("size") or {}).get("splits", [])
+    except Exception as exc:
+        size_error = f"{type(exc).__name__}: {exc}"
+    else:
+        size_error = None
+
+    row_counts = {
+        (item.get("config", "default"), item.get("split", "unknown")):
+        item.get("num_rows", "unknown")
+        for item in size_entries
+    }
+
+    entries = split_entries or size_entries
+
+    if entries:
+        summaries = []
+        for item in entries:
+            config = item.get("config", "default")
+            split = item.get("split", "unknown")
+            rows = row_counts.get((config, split), "unknown")
+            summaries.append(
+                f"{split} ({rows} rows; config={config})"
+            )
+        split_summary = "; ".join(summaries)
+    else:
+        split_summary = "No split entries returned by Hugging Face."
+
+    if split_error:
+        split_summary += f"\n  - Splits API detail: `{split_error}`"
+    if size_error:
+        split_summary += f"\n  - Size API detail: `{size_error}`"
 
     try:
         card = fetch_text(CARD_URL)
@@ -139,9 +174,13 @@ def get_hub_metadata() -> tuple[str, str, str]:
                 f"- `{line}`" for line in license_lines[:12]
             )
         else:
-            license_text += "\n\nNo explicit license line was found in the fetched README."
+            license_text += (
+                "\n\nNo explicit license line was found in the fetched README."
+            )
     except Exception as exc:
-        license_text += f"\n\nDataset-card fetch detail: `{type(exc).__name__}: {exc}`"
+        license_text += (
+            f"\n\nDataset-card fetch detail: `{type(exc).__name__}: {exc}`"
+        )
 
     return revision, split_summary, license_text
 

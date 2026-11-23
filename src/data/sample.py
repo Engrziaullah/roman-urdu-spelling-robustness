@@ -38,7 +38,7 @@ def normalize_options(options):
     raise ValueError("Unsupported options format")
 
 
-def create_sample(seed, per_domain, output_file):
+def create_sample(seed, per_domain, output_file, report_file=None):
     with open(INPUT_FILE, encoding="utf-8") as f:
         records = json.load(f)
 
@@ -141,7 +141,9 @@ def create_sample(seed, per_domain, output_file):
     if len({row["item_id"] for row in final_rows}) != len(final_rows):
         raise ValueError("Duplicate item IDs found")
 
-    with open(REPORT_FILE, "w", encoding="utf-8") as f:
+    report_file = Path(report_file) if report_file else REPORT_FILE
+    report_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(report_file, "w", encoding="utf-8") as f:
         f.write("# Sampling Report\n\n")
         f.write(f"- Date: {date.today().isoformat()}\n")
         f.write(f"- Seed: {seed}\n")
@@ -179,7 +181,7 @@ def create_sample(seed, per_domain, output_file):
         print(f"{domain}: {count}")
     print("First 200 rank counts:", dict(sorted(first_200.items())))
     print("Output:", output_file)
-    print("Report:", REPORT_FILE)
+    print("Report:", report_file)
 
 
 def main():
