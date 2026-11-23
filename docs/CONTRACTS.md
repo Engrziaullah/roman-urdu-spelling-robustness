@@ -1,4 +1,4 @@
-﻿# Interface Contracts
+# Interface Contracts
 
 These schemas are the agreement between A (data), B (evaluation) and C (analysis). Agree on them at Gate G0. Change them only with all three people's consent.
 
