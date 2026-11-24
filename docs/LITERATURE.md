@@ -48,7 +48,7 @@ Column "Reader" = who reads it first (swap freely). "Opened" and "Verified" are 
 | L22 | P3 | Large Reasoning Models Struggle to Transfer Parametric Knowledge Across Scripts. Bandarkar et al. Findings of EMNLP 2026; arXiv:2603.17070 | Script match reported as main predictor of knowledge transfer failure | Mechanistic context. Identifies cross-script entity transliteration mismatch as primary failure mode | Younas | ☑ | ☑ |
 | L23 | P3 | Unseen Harm: cross-script safety inconsistency (Zehra et al. arXiv 2026) and Understood, Unaligned, or Unrouted? (NeurIPS 2026) | Cross-script safety evaluation across Urdu script and Roman Urdu | Safety task, different from ours. Related-work mention only; check venue status | Zia | ☐ | ☐ |
 
-| L24 | P1 | **Roman Urdu Input Costs Small Local ReAct Agents up to 35 Accuracy Points: A Paired Benchmark on Clinic Questions.** Muzammal Hussain and Maryam Khalid. Published 7 Nov 2026, Version 1, Zenodo preprint (DOI 10.5281/zenodo.24045043; all-versions DOI 10.5281/zenodo.24045042), CC BY 4.0. Not peer-reviewed. Supplemented by software record (v1.0.0, DOI 10.5281/zenodo.24044983; all-versions DOI 10.5281/zenodo.24044982, MIT) by Muzammal Hussain on GitHub (https://github.com/MHKhan50/roman-urdu-react-bench tag v1.0.0). Bibliographic metadata checked against Zenodo records on 2026-11-22. | The supplied text describes 96 fictional clinic questions from 12 templates; 4 local models in ReAct and other evaluation conditions; 3 input forms: English, common Roman Urdu, chat spelling. Under the English-example ReAct condition, three of four models showed substantial common-Roman-Urdu accuracy drops. It reports a 22.1 pp chat-spelling loss for Qwen2.5 3B. The displayed common-Roman-Urdu comparison is 57.9% vs 36.5% (21.4 pp); preserve this discrepancy for verification. Other reported results: drops of -34.7, -31.2, and -21.9 pp; one model +1.0 pp. Clinician audit: 1 reviewer, 48 items with 1 name set, 16 unrealistic, 7 gender-agreement issues. | **Bibliographic metadata checked against Zenodo records on 2026-11-22; study content reviewed from researcher-supplied text.** Not peer-reviewed. Closest known paired Roman Urdu study; do not claim “first study.” It reports agent accuracy, not our 5-condition MCQ Answer Flip Rate; no native Nastaliq (`NU`) or back-transliteration (`RT`). Remaining open items: (a) compare supplied text with Zenodo PDF 04_RomanUrdu_ReAct.pdf (239.6 kB, md5 3b8c0761f40054db9386b44b506b4465), (b) GitHub repository has not been opened, (c) 22.1-point vs 21.4-point difference needs source-data checking. | Younas | ☑ | ☐ |
+| L24 | P1 | **Roman Urdu Input Costs Small Local ReAct Agents up to 35 Accuracy Points: A Paired Benchmark on Clinic Questions.** Muzammal Hussain and Maryam Khalid. November 2026, Version 1, Zenodo preprint (DOI 10.5281/zenodo.24045043; all-versions DOI 10.5281/zenodo.24045042), CC BY 4.0. Not peer-reviewed. Software/data: DOI 10.5281/zenodo.24044983 (v1.0.0, MIT) by Muzammal Hussain on GitHub (https://github.com/MHKhan50/roman-urdu-react-bench). | Evaluates how Roman Urdu affects small local ReAct agents on fictional physiotherapy-clinic questions. 96 questions from 12 templates (4 instances/template, 2 name sets) across 3 language forms (English, common Roman Urdu, chat spelling). Models: Qwen2.5 3B, Qwen2.5 7B, Llama 3.2 3B, Llama 3.1 8B. Methods: Direct answering, ReAct (English example), ReAct (Roman Urdu example), translate-then-ReAct. Under English-example ReAct, Roman Urdu accuracy drops 34.7 pp (Qwen2.5 3B), 31.2 pp (Llama 3.2 3B), and 21.9 pp (Llama 3.1 8B); Qwen2.5 7B shows +1.0 pp. Chat spelling causes further 22.1 pp paired loss for Qwen2.5 3B (57.9% common vs 36.5% chat; paired diff −22.1 pp on 95 matched items, distinct from 21.4 pp marginal subtraction). Limitations: fictional clinic, 12 templates by 1 person, 4 small models, 1 sample/question, 2 timeout calls excluded (3,838 scored calls). Clinician review: 48 items (1 name set) checked; all gold answers correct; 16 items (T03–T06) judged unrealistic; 7 Roman Urdu items had gender-agreement issues. | **Full-text verified from 7-page PDF (04_RomanUrdu_ReAct.pdf) and cross-checked against public repository.** Raw calls not independently rerun; preprint, not peer-reviewed. Closest known paired Roman Urdu study; do not claim “first study.” Evaluates agent accuracy on clinic queries, not our 5-condition MCQ Answer Flip Rate; no native Nastaliq (`NU`) or back-transliteration (`RT`). | Younas | ☑ | ☑ |
 | L25 | P2 | **Waleed Jamil, Saima Rafi, and Yanchao Yu.** "Token Cost Inequality: Measuring Tokenization Disparities Across Scripts in Roman Urdu and Urdu." *Proceedings of the Fifth Workshop on Generation, Evaluation and Metrics (GEM)*, July 2026, pp. 563-573. DOI 10.18653/v1/2026.gem-main.54. | Full text independently reviewed. Samples 10,000 examples from each of Roman-Urdu-Parl, OPUS100 English-Urdu, and Dakshina Urdu; evaluates cl100k_base, mT5, and ByT5 using TCI, tokens per word, fixed-budget character retention, cost multipliers, and lightweight normalization. | **Verified from full text and official bibliographic record.** Tokenization efficiency and surface coverage are relevant background, but the study does not evaluate MCQ answer accuracy or compare RU-P, RU-R, and RU-X. | Younas | ☑ | ☑ |
 | L26 | P3 | Sodhar et al. 2026. Reproducible framework for evaluating Romanized Sindhi output consistency in conversational LLMs (pilot study; ijournalar.com; title cut off in the search snippet) | Consistency of Romanized Sindhi **output** of a chat model | Probably `not relevant`: Sindhi, output side rather than input spelling, journal quality unclear. Check venue, then mark | Younas | ☐ | ☐ |
 | L27 | P3 | SafeSwitch: A Localized Benchmark for LLM Safety in Urdu and Pashto across Language Forms and Prompting Strategies. M. Ali (PDF on a public blob host, no venue found) | Safety benchmark across language forms; the snippet cites a Roman Urdu adversarial benchmark as ref [9], probably L10 | Not peer-reviewed as far as found. Do not cite unless a proper venue is found | Younas | ☐ | ☐ |
@@ -63,7 +63,7 @@ Column "Reader" = who reads it first (swap freely). "Opened" and "Verified" are 
 | L36 | P3 | Saji et al. "RomanLens: The role of latent romanization in multilinguality in LLMs". Findings 2025 | Latent romanization inside LLMs | Optional mechanism background | Younas | ☐ | ☐ |
 | L37 | P2 | "Romanization Flattens the Field: Script and Metric Sensitivity in Sinhala SLM Evaluation" (NeurIPS 2026 virtual page; authors not recorded) | Per the abstract: downstream evaluation with 9,479 items, eleven instruction-tuned checkpoints and 208,538 generations; the romanized side comes from a deterministic rule-based transliterator; script effect described as a flattening (a 22.4-point spread becomes 6.7). It refers to the L16 benchmark | Close design in another language (accuracy across scripts, rule-based variants). Found in an ad-hoc web search on 2026-11-19, not in a logged database search. Check: venue, task, whether any item-level instability is reported | Younas | ☐ | ☐ |
 
-Status for L24-L28: L24 has bibliographic metadata checked against Zenodo records on 2026-11-22 with supplied-paper content reviewed; L25 is full-text and bibliographically verified; L28 is unresolved; L26 and L27 retain their existing unverified statuses. Rows L29-L37 remain search-record entries until individually verified.
+Status for L24-L28: L24 is full-text verified from the 7-page PDF and cross-checked against repository outputs; L25 is full-text and bibliographically verified; L28 is unresolved; L26 and L27 retain their existing unverified statuses. Rows L29-L37 remain search-record entries until individually verified.
 
 Add new rows as papers are found (IDs continue L38, L39, ...). Never delete a row; mark it `not relevant` with a reason.
 
@@ -123,8 +123,8 @@ If a search returns zero results, **log it** too.
 | Topic | Allowed wording | Not allowed |
 |---|---|---|
 | Novelty | "To our knowledge, and as of [date], we did not find a study that ... in our searches (Section X, Appendix Y)." | "No one has done this." "First study ..." (unless the literature table fully supports it) |
-| Closest prior work | Once the bibliographic record is independently verified, describe Hussain and Khalid (2026, preprint) only as reported in the supplied text: chat spelling reduced accuracy in small local clinic ReAct agents. Our study differs in evaluating factual knowledge MCQs, systematically controlling three orthographic conventions (RU-P, RU-R, RU-X) alongside native (NU) and back-transliterated (RT) baselines, and measuring within-item Answer Flip Rates while isolating repeated-run noise. | "First study of Roman Urdu spelling effects." Presenting an unverified record as peer-reviewed. Claiming no prior paired Roman Urdu spelling study exists |
-| Gap statement (draft) | The supplied L24 text reports paired Roman Urdu spelling evaluation in clinical ReAct agent tool use. Subject to independent source verification, our study asks whether item-level answer choice flips occur across rule-governed Roman Urdu orthographic conventions on knowledge multiple-choice questions, compared with native Nastaliq and back-transliterated conditions and repeated-run noise controls. | "No prior work exists." Conflating agent accuracy drop with multiple-choice Answer Flip Rate |
+| Closest prior work | Verified from the seven-page preprint PDF (Zenodo DOI 10.5281/zenodo.24045043): describe Hussain and Khalid (2026, preprint) as reporting that informal chat spelling reduced task accuracy in evaluated small local clinic ReAct agents on physiotherapy queries (a 22.1 paired pp drop on 95 matched items for Qwen2.5 3B). Our study differs in evaluating factual knowledge MCQs, systematically controlling three orthographic conventions (RU-P, RU-R, RU-X) alongside native (NU) and back-transliterated (RT) baselines, and measuring within-item Answer Flip Rates while isolating repeated-run noise. | "First study of Roman Urdu spelling effects." Presenting an unverified record as peer-reviewed. Claiming no prior paired Roman Urdu spelling study exists |
+| Gap statement (draft) | The verified L24 preprint (Hussain and Khalid, 2026) reports paired Roman Urdu spelling evaluation in clinical ReAct agent tool use on specific evaluated models. Our study asks whether item-level answer choice flips occur across rule-governed Roman Urdu orthographic conventions on knowledge multiple-choice questions, compared with native Nastaliq and back-transliterated conditions and repeated-run noise controls. While L24 is now full-text verified, unresolved candidates such as L28 remain pending verification. | "No prior work exists." Conflating agent accuracy drop with multiple-choice Answer Flip Rate |
 | Script effect | "Prior studies report mixed directions across tasks (cite L03, L05, L04 after verification)." | Any direction claimed for exam-style knowledge before our own results |
 | Belebele | State exactly what it contains after verification (L02) | Describing it from memory or from a tool summary |
 | Spelling | "Prior work normalised spellings (L10) or built variant lists (L09)" **only after those papers are verified** | Claiming that nobody studies spelling variation |
@@ -151,10 +151,11 @@ Keep one BibTeX entry per **verified** paper in `paper/references.bib` (key form
 | L04 | `khullar2025scriptgap` | 2026-11-21 | Younas |
 | L09 | `soomro2024romanurdu` | 2026-11-21 | Younas |
 | L25 | `jamil2026tokencost` | 2026-11-22 | Younas |
+| L24 | `hussainKhalid2026romanurdu` | 2026-11-23 | Younas |
 
 ## 6. Day 4 literature checklist (with the claims audit in `PLAN.md`)
 
-- [ ] All P1 papers opened and verified (L01 to L05, and L24).
+- [x] All P1 papers opened and verified (L01 to L05, and L24).
 - [ ] Every paper cited in the draft has its verification box ticked.
 - [ ] Section 3.2 searches repeated; dates and counts recorded.
 - [ ] L13: re-open the publisher page and reconfirm the DOI and the CC BY 4.0 license (a later AI-assisted review could not reconfirm them).
@@ -329,39 +330,53 @@ Keep one BibTeX entry per **verified** paper in `paper/references.bib` (key form
 - Not allowed: claiming Bandarkar et al. evaluated spelling variations within Roman Urdu.
 
 ### L24 Roman Urdu Input Costs Small Local ReAct Agents up to 35 Accuracy Points: A Paired Benchmark on Clinic Questions (Hussain and Khalid, 2026, preprint)
-- Reviewed full text: 2026-11-21 (Younas). Source: full paper text provided for review.
-- Bibliographic metadata was checked against the Zenodo records on 2026-11-22.
+- Verified full text: 2026-11-23 (Younas). Primary source: actual seven-page PDF (`04_RomanUrdu_ReAct.pdf`, 239.6 kB, md5 `3b8c0761f40054db9386b44b506b4465`) inspected.
+- Bibliographic details and principal results cross-checked against public repository README and published results tables. Raw experimental calls (3,838 calls) were not independently rerun.
 - Authors: Muzammal Hussain and Maryam Khalid.
-- Date: Published 7 November 2026, Version 1.
-- Publication status: Resource type Preprint (Zenodo), license CC BY 4.0. Not peer-reviewed.
-- Identifiers & Zenodo records (checked on 2026-11-22):
-  - Preprint record: "Roman Urdu Input Costs Small Local ReAct Agents up to 35 Accuracy Points: A Paired Benchmark on Clinic Questions". Authors: Muzammal Hussain and Maryam Khalid. Published 7 November 2026, Version 1, resource type Preprint, license CC BY 4.0. File: `04_RomanUrdu_ReAct.pdf` (239.6 kB, md5 `3b8c0761f40054db9386b44b506b4465`). DOI `10.5281/zenodo.24045042` is the all-versions DOI; DOI `10.5281/zenodo.24045043` is the Version 1 DOI (Zenodo's own citation uses this one). Not peer-reviewed.
-  - Software record: "Roman Urdu ReAct benchmark: clinic questions in English and Roman Urdu for small local agents". Author: Muzammal Hussain. Version v1.0.0, 7 November 2026, MIT license. DOI `10.5281/zenodo.24044983` (version DOI; all-versions DOI `10.5281/zenodo.24044982`). GitHub: https://github.com/MHKhan50/roman-urdu-react-bench (tag v1.0.0).
-  - The two Zenodo records are different records and link to each other: the preprint "is supplemented by" the software, and the software "is supplement to" the preprint.
-  - Remaining open items for L24: (a) compare the researcher-supplied text with the Zenodo PDF `04_RomanUrdu_ReAct.pdf` (md5 `3b8c0761f40054db9386b44b506b4465`), (b) the GitHub repository has not been opened, (c) the 22.1-point versus 21.4-point difference still needs source-data checking.
-- Study design:
-  - 96 fictional clinic questions generated from 12 parameterized question templates (3,838 total scored model/tool calls). Study content comes from the researcher-supplied text, and still has to be compared with the Zenodo PDF `04_RomanUrdu_ReAct.pdf` (md5 `3b8c0761f40054db9386b44b506b4465`).
-  - 3 input forms: English baseline, Common Roman Urdu, and Chat-Spelling Roman Urdu.
-  - 4 local models evaluated using ReAct (Reasoning + Acting) and other evaluation conditions.
-  - Single evaluation pass at deterministic temperature 0 (no repeated-run noise analysis).
-- Key findings:
-  - Under the English-example ReAct condition, three of four models showed substantial accuracy drops on Common Roman Urdu (-34.7, -31.2, and -21.9 percentage points); one model showed slight resilience (+1.0 point).
-  - The supplied text reports a 22.1 percentage-point chat-spelling loss for Qwen2.5 3B.
-  - *Data discrepancy flag:* The displayed common-Roman-Urdu comparison is 57.9% versus 36.5%, a 21.4-point difference. Preserve this alongside the reported 22.1-point chat-spelling loss; the reviewed material does not reconcile them, so source-data verification remains necessary.
-- Benchmark limitations (clinician review):
-  - Clinical audit conducted by a single clinical reviewer.
-  - 48 of the 96 items (50%) used only a single synthetic patient name set.
-  - 16 questions flagged by the clinician as clinically unrealistic in outpatient practice.
-  - 7 questions contained grammatical gender-agreement violations in Roman Urdu.
-  - Single-run, temperature-zero design precluding measurement of decoding stochasticity.
-- Overlap & research relevance:
-  - The researcher-supplied text is a potential direct empirical precedent on paired Roman Urdu spelling and reports accuracy differences across input forms. Bibliographic metadata was checked against the Zenodo records on 2026-11-22, while text comparison with the Zenodo PDF, opening the GitHub repository, and source-data checking for the 22.1 vs 21.4 pp discrepancy remain open.
+- Date: November 2026 (7 November 2026, Version 1).
+- Publication status: Version 1 preprint on Zenodo, resource type Preprint, license CC BY 4.0. Not peer-reviewed.
+- Identifiers & records:
+  - Paper / preprint DOI: `10.5281/zenodo.24045043` (Version 1 DOI, cited by Zenodo; all-versions DOI `10.5281/zenodo.24045042`).
+  - Software / data DOI: `10.5281/zenodo.24044983` (version DOI; all-versions DOI `10.5281/zenodo.24044982`). Author: Muzammal Hussain. Version: v1.0.0. License: MIT. Public GitHub repository: https://github.com/MHKhan50/roman-urdu-react-bench (tag v1.0.0).
+  - Relationship: The two Zenodo records link to each other (preprint is supplemented by software; software is supplement to preprint).
+- Research objective: Evaluate how Roman Urdu input affects small local ReAct agents answering fictional physiotherapy-clinic questions (scheduling, triage, dosage, patient lookup).
+- Dataset & benchmark design:
+  - 96 fictional clinical questions constructed from 12 parameterized question templates (4 instances per template, 2 distinct patient name sets).
+  - 3 paired language forms: English prompt baseline, Common Roman Urdu, and Chat-Spelling Roman Urdu.
+  - 4 local models evaluated: Qwen2.5 3B, Qwen2.5 7B, Llama 3.2 3B, and Llama 3.1 8B.
+  - 4 evaluation methods: Direct answering, ReAct with an English example, ReAct with a Roman Urdu example, and Translate-then-ReAct.
+  - Evaluation controls: Single evaluation pass at deterministic temperature 0 (no repeated-run noise analysis); 3,838 total scored model/tool calls (two timeout calls excluded).
+- Main findings & numerical clarification:
+  - Under ReAct with English example, switching from English to Common Roman Urdu caused substantial accuracy drops in three of four models: Qwen2.5 3B dropped -34.7 percentage points, Llama 3.2 3B dropped -31.2 percentage points, and Llama 3.1 8B dropped -21.9 percentage points; Qwen2.5 7B showed slight resilience (+1.0 percentage points).
+  - Chat spelling imposed a further performance penalty on sensitive models: for Qwen2.5 3B, Common Roman Urdu achieved 57.9% accuracy and Chat Spelling achieved 36.5% accuracy.
+  - *Numerical clarification on paired difference:* The paper reports a paired loss of −22.1 percentage points based on 95 matched items. This paired comparison uses matched items and is distinct from simple marginal subtraction of the displayed percentages (57.9% − 36.5% = 21.4 pp); the 22.1 pp paired result is preserved as reported.
+- Important benchmark limitations & clinician review:
+  - Synthetic domain: Fictional physiotherapy clinic; 12 templates written by one person.
+  - Model scope: Four small local models; one sample per question at temperature 0; two timeout calls excluded (3,838 scored calls).
+  - Clinician audit: A post-hoc audit conducted by 1 clinician on 48 items (covering only one of the two name sets):
+    - All 48 gold answers were judged medically correct.
+    - 16 items (from templates T03–T06) were judged clinically unrealistic for outpatient practice.
+    - 7 Roman Urdu items exhibited Urdu grammatical gender-agreement errors.
+- BibTeX entry for paper:
+  ```bibtex
+  @misc{hussainKhalid2026romanurdu,
+    author = {Hussain, Muzammal and Khalid, Maryam},
+    title = {Roman Urdu Input Costs Small Local ReAct Agents up to 35 Accuracy Points: A Paired Benchmark on Clinic Questions},
+    year = {2026},
+    publisher = {Zenodo},
+    doi = {10.5281/zenodo.24045043},
+    note = {Version 1 preprint}
+  }
+  ```
+- Software citation note: Software/data DOI `10.5281/zenodo.24044983` (author Muzammal Hussain, v1.0.0, MIT) is recorded separately and not conflated with the paper citation.
+- Overlap & research relevance: Closest known empirical study evaluating paired Roman Urdu input forms on language models. Reports that informal chat spelling reduced task accuracy in the evaluated small local ReAct agents on fictional physiotherapy-clinic queries.
 - Differences from our research:
   - Task: Clinical agent tool-calling execution vs. our factual knowledge multiple-choice questions (UrduMMLU).
   - Conditions: English, common Roman Urdu, chat Roman Urdu vs. our five matched conditions (NU, RU-P, RU-R, RU-X, RT).
   - Metrics: Macro task accuracy drops via paired bootstrap vs. our primary metric, **Answer Flip Rate (AFR)**, which measures within-item choice flips under semantics-preserving spelling changes.
   - Script controls: No native Nastaliq (`NU`) or back-transliteration (`RT`) conditions; does not test multiple rule-governed Roman Urdu orthographies (RU-P, RU-R, RU-X).
-- Internal, source-qualified wording only (not a citation until metadata is verified): "The researcher-supplied L24 text reports that informal chat spelling reduced task accuracy in small local ReAct agents across two Roman Urdu forms on clinic queries."
+- Internal, source-qualified wording only: "Hussain and Khalid (2026, preprint) report that informal chat spelling reduced task accuracy by 22.1 paired percentage points in small local ReAct agents across two Roman Urdu forms on clinic queries."
+- Allowed, source-qualified gap phrasing for our manuscript: "While Hussain and Khalid (2026, preprint) observed that informal chat spelling degraded task accuracy in small clinical ReAct agents across two Roman Urdu renderings (a 22.1 paired percentage-point drop on Qwen2.5 3B), the reviewed literature has not yet established whether item-level answer choices flip across systematic, rule-governed Roman Urdu orthographic conventions on factual multiple-choice benchmarks, nor compared them against native Nastaliq (`NU`) and back-transliterated (`RT`) baselines while controlling for repeated-run noise."
 - Not allowed: Claiming our study is the first to evaluate paired Roman Urdu spelling; presenting Hussain and Khalid (2026, preprint) as peer-reviewed; claiming Hussain and Khalid evaluated multiple-choice questions or measured Answer Flip Rate.
 
 ### L25 Token Cost Inequality: Measuring Tokenization Disparities Across Scripts in Roman Urdu and Urdu (Jamil, Rafi, and Yu, GEM 2026)
@@ -426,7 +441,7 @@ Belebele (L02) compares native and a single Latin-script rendering in reading co
 
 ### Roman Urdu spelling variation and normalization
 
-Soomro et al. (L09) provides attested spelling-variation data, verified from full text. Like RUAB (L10), its objective is to normalize spelling variation rather than evaluate LLM answer sensitivity across multiple meaning-preserving Roman Urdu conventions. The researcher-supplied L24 text (Hussain and Khalid, 2026, preprint) describes a paired Roman Urdu clinic ReAct evaluation and reports an accuracy cost for chat spelling; bibliographic metadata was checked against Zenodo records on 2026-11-22, while comparison with the Zenodo PDF remains to be completed. It does not describe factual MCQs or our within-item answer flip rate across multiple rule-governed Roman Urdu conventions.
+Soomro et al. (L09) provides attested spelling-variation data, verified from full text. Like RUAB (L10), its objective is to normalize spelling variation rather than evaluate LLM answer sensitivity across multiple meaning-preserving Roman Urdu conventions. The verified L24 preprint (Hussain and Khalid, 2026) describes a paired Roman Urdu clinic ReAct evaluation on physiotherapy queries and reports an accuracy cost for chat spelling (−22.1 paired pp for Qwen2.5 3B across 95 matched items). It does not describe factual MCQs or our within-item answer flip rate across multiple rule-governed Roman Urdu conventions.
 
 ### Tokenization and multilingual model behavior
 
@@ -434,13 +449,13 @@ The repository records full-text checks of L07 and L19, which concern non-canoni
 
 ### Factual consistency and answer stability
 
-The repository-recorded review of L22 concerns knowledge transfer across scripts, not alternative spellings within Roman Urdu. L03 reports aggregate accuracy by condition, while L29 is an unverified candidate for multiple-choice consistency methods. In the verified materials currently documented here, no study is established as testing per-item answer flips across controlled Roman Urdu spelling styles on knowledge MCQs.
+The repository-recorded review of L22 concerns knowledge transfer across scripts, not alternative spellings within Roman Urdu. L03 reports aggregate accuracy by condition, while L29 is an unverified candidate for multiple-choice consistency methods. In the verified materials currently documented here, the reviewed literature has not yet established whether item-level answer choices flip across controlled Roman Urdu spelling styles on knowledge MCQs.
 
 ### Provisional gap and relation to the five conditions
 
-The researcher-supplied L24 text (Hussain and Khalid, 2026, preprint) describes paired Roman Urdu spelling evaluation in local clinical ReAct agents, with English, common Roman Urdu, and chat spelling conditions. Its bibliographic metadata was checked against Zenodo records on 2026-11-22 (not peer-reviewed); comparison with the Zenodo PDF, opening the GitHub repository, and source-data checking for the 22.1 vs 21.4 pp discrepancy remain open. Subject to source verification, a distinct question for our study is whether meaning-preserving, rule-defined Roman Urdu spelling conventions alter item-level multiple-choice answers on Urdu knowledge questions. This study will compare five matched conditions (NU, RU-P, RU-R, RU-X, and RT), measure within-item Answer Flip Rates across the Roman Urdu variants, and distinguish spelling effects from repeated-run variability. L25 is different: it is a verified tokenization-efficiency study and does not answer the answer-instability question.
+The verified L24 preprint (Hussain and Khalid, 2026) describes paired Roman Urdu spelling evaluation in local clinical ReAct agents on physiotherapy queries, with English, common Roman Urdu, and chat spelling conditions. A distinct question for our study is whether meaning-preserving, rule-defined Roman Urdu spelling conventions alter item-level multiple-choice answers on Urdu knowledge questions. This study will compare five matched conditions (NU, RU-P, RU-R, RU-X, and RT), measure within-item Answer Flip Rates across the Roman Urdu variants, and distinguish spelling effects from repeated-run variability. L25 is different: it is a verified tokenization-efficiency study and does not answer the answer-instability question.
 
-NU provides the source-script reference. RU-P, RU-R, and RU-X permit comparisons among the project’s specified Roman Urdu spellings while holding item meaning and register constant. RT provides the project’s back-transliterated-script condition; it should be interpreted according to the frozen protocol, not as another Roman spelling style. None of the reviewed materials establishes outcomes for these five project conditions. Do not claim that they demonstrate an effect, prove novelty, or support a final empirical gap until the outstanding papers and searches are checked.
+NU provides the source-script reference. RU-P, RU-R, and RU-X permit comparisons among the project’s specified Roman Urdu spellings while holding item meaning and register constant. RT provides the project’s back-transliterated-script condition; it should be interpreted according to the frozen protocol, not as another Roman spelling style. None of the reviewed materials establishes outcomes for these five project conditions. While L24 is now full-text verified (with reported degradation applying specifically to its evaluated local models and clinic benchmark), unresolved candidates such as L28 and pending searches must be resolved before finalizing the empirical gap.
 
 ### Source checks during this consolidation
 
@@ -449,5 +464,5 @@ NU provides the source-script reference. RU-P, RU-R, and RU-X permit comparisons
 - [Token Cost Inequality ACL Anthology record](https://aclanthology.org/2026.gem-main.54/): full text and bibliographic details verified; DOI 10.18653/v1/2026.gem-main.54.
 - [Soomro et al. PMC full text](https://pmc.ncbi.nlm.nih.gov/articles/PMC11683287/) / [DOI](https://doi.org/10.1016/j.dib.2024.111170): verified from PMC full text and Mendeley Data landing page (v5, DOI 10.17632/v5jfhsvtmd.5).
 - [PURUTT DOI as recorded in the table](https://doi.org/10.1109/ACCESS.2025.3538411): the Crossref exact-DOI lookup did not resolve, and a title lookup was rate-limited. This does not establish that the paper or DOI is invalid; the existing DOI/license conflict remains unresolved.
-- [Hussain and Khalid (2026, preprint) L24]: Bibliographic metadata checked against Zenodo records on 2026-11-22. Preprint DOI 10.5281/zenodo.24045043 (Version 1; all-versions 10.5281/zenodo.24045042, CC BY 4.0, not peer-reviewed) by Muzammal Hussain and Maryam Khalid; supplemented by software record (DOI 10.5281/zenodo.24044983, v1.0.0, MIT) by Muzammal Hussain on GitHub (https://github.com/MHKhan50/roman-urdu-react-bench). Content from researcher-supplied text; remaining open items: compare supplied text with Zenodo PDF 04_RomanUrdu_ReAct.pdf (md5 3b8c0761f40054db9386b44b506b4465), GitHub repository has not been opened, and the 22.1-point vs 21.4-point difference needs source-data checking.
+- [Hussain and Khalid (2026, preprint) L24]: Full-text verified from 7-page PDF (04_RomanUrdu_ReAct.pdf, md5 3b8c0761f40054db9386b44b506b4465) and cross-checked against public repository outputs. Preprint DOI 10.5281/zenodo.24045043 (Version 1; all-versions 10.5281/zenodo.24045042, CC BY 4.0, not peer-reviewed) by Muzammal Hussain and Maryam Khalid; software record DOI 10.5281/zenodo.24044983 (v1.0.0, MIT) by Muzammal Hussain on GitHub (https://github.com/MHKhan50/roman-urdu-react-bench). Raw experimental calls were not independently rerun.
 - Facts Follow the Spelling (L28): the OpenReview API check was blocked by a browser verification page. Title, authors, review status, venue, and findings remain unverified.
