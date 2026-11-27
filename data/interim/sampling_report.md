@@ -1,6 +1,6 @@
 # Sampling Report
 
-- Date: 2026-11-19
+- Date: 2026-11-24
 - Seed: 42
 - Dataset revision: `aae060a8564c261393de206c94a4557c850e7f2f`
 - Total source records: 26431
@@ -23,20 +23,12 @@
 - STEM: 100
 - Social Sciences: 100
 
-## Option counts after four-option replacement
+## Option counts in original selected sample
 
-- 4 options: 500
+- 4 options: 497
+- 5 options: 3
 
-## Four-option replacements
-
-| Item ID | Domain | Original source ID | Replacement source ID | Replacement shuffled domain rank |
-|---|---|---:|---:|---:|
-| umm-0266 | Humanities | 19809 | 14732 | 101 |
-| umm-0401 | Humanities | 19804 | 21078 | 102 |
-| umm-0118 | Profession | 24994 | 24754 | 101 |
-
-- Selection policy: a selected non-four-option item is replaced by the next unused four-option record in the same seeded, shuffled eligible-domain order, after the original per-domain selection.
-- Normalized UTF-8 SHA-256 (CRLF normalized to LF): `2b3b4c9dfd12d97a5df285019ada4206d89e8d83fc2bd9004c1836d7b33cad73`
+- Selection policy: All selected items are retained with their original number of options; no replacement is performed.
 
 ## Selected records by subject
 
@@ -44,8 +36,8 @@
 - Humanities / fine arts: 1
 - Humanities / islamic studies: 13
 - Humanities / urdu grammar: 5
-- Humanities / urdu language: 27
-- Humanities / urdu literature: 52
+- Humanities / urdu language: 28
+- Humanities / urdu literature: 51
 - Other / general knowledge: 100
 - Profession / professional development: 59
 - Profession / professional studies: 41
