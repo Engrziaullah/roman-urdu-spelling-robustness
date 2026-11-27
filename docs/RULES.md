@@ -1,7 +1,7 @@
-# RULES: Spelling Operation Rules for RU-P, RU-R, RU-X and RT
+﻿# RULES: Spelling Operation Rules for RU-P, RU-R, RU-X and RT
 
 **Owner:** Role A (Sudais Khan). **Reviewers:** Zia Ullah, Younas Khan (a different person reviews every change).
-**Status:** `v0 DRAFT`. Everything marked *PROPOSED* or *CANDIDATE* is a starting point, **not a decision**.
+**Status:** `v2 DRAFT`. Everything marked *PROPOSED* or *CANDIDATE* is a starting point, **not a decision**.
 A native Urdu reader must confirm each item before the data freeze (Gate G2). Nothing in this file may be changed after G2.
 
 Related files: `CONTRACTS.md` (data schema), `PLAN.md` (schedule and gates), `LITERATURE.md` (evidence for the operations).
@@ -10,29 +10,28 @@ Related files: `CONTRACTS.md` (data schema), `PLAN.md` (schedule and gates), `LI
 
 ## 0. Why this file matters
 
-The primary outcome of the study is **answer instability across Roman Urdu spellings of the same question**. That result is only valid if the three
-Roman Urdu versions (RU-P, RU-R, RU-X) differ **only in letters**: not in words, word order, formality or register. These rules define exactly
-what is allowed to change. If they are vague, the result cannot be interpreted.
+The primary outcome of the study is **answer instability across Roman Urdu spellings of the same question**. That result is only valid if the three Roman Urdu versions (RU-P, RU-R, RU-X) differ **only in letters**: not in words, word order, formality or register. These rules define exactly what is allowed to change. If they are vague, the result cannot be interpreted.
 
 ## 1. Decisions to record at Gate G0 (fill in; do not leave blank)
 
 | # | Decision | Value | Decided by / date |
 |---|---|---|---|
-| 1 | Non-evaluated LLM used to draft RU-P (must NOT be one of the evaluated models) | TBD (model string and provider) | |
-| 2 | Tool/model used for RT (RU-P back to Nastaliq) | TBD (name, version, settings) | |
-| 3 | Random seed for sampling | TBD (CONTRACTS/config use one value everywhere) | |
-| 4 | Size of the spot-check sample on the 400 items not fully verified | TBD (see section 9.3 for guidance) | |
-| 5 | Punctuation policy (section 3.4) confirmed | TBD | |
-| 6 | Number of options per item (from the real UrduMMLU schema) | TBD (verify; do not assume 4) | |
-| 7 | Who verifies which item ranges (section 9.1) | TBD | |
+| 1 | Non-evaluated LLM used to draft RU-P (must NOT be one of the evaluated models) | PENDING (model string and provider) | |
+| 2 | Tool/model used for RT (RU-P back to Nastaliq) | PENDING (name, version, settings) | |
+| 3 | Random seed for sampling | 42 | Zia Ullah, covering for Sudais, 2026-11-19 |
+| 4 | Size of the spot-check sample on the 400 items not fully verified | 60 items, 12 per domain, sampled from outside the 100 fully verified items with seed 42 | Zia Ullah, covering for Sudais, 2026-11-19 |
+| 5 | Punctuation policy (section 3.4) confirmed | Confirmed as written in section 3.4 | Zia Ullah, covering for Sudais, 2026-11-19 |
+| 6 | Number of options per item (from the real UrduMMLU schema) | Both 4-option and 5-option items are allowed. Preserve original option order; for 5-option items, E is a valid answer. Do not replace 5-option items. | Team-agreed policy; confirmed by Roles A, B and C |
+| 7 | Who verifies which item ranges (section 9.1) | PENDING; do not assign Zia to RU-R/RU-X or items with rules authored by Zia | |
 
 ## 2. What is transformed
 
 Following `CONTRACTS.md`:
 
 - The **question stem** and **every option text** are transformed in RU-P, RU-R, RU-X (and RT is derived from RU-P).
-- The **option letters** shown to the model (A, B, C, D) are always Latin and never change.
+- The **option letters** shown to the model (A, B, C, D, E as applicable) are always Latin and never change.
 - `gold` (the correct letter) and the **order of options** never change.
+- Both 4-option and 5-option items are retained in the dataset. No five-option item is replaced merely to force a four-option format.
 - NU is the original UrduMMLU text, untouched.
 
 ## 3. Invariants (must hold for every item; the code tests them)
@@ -44,14 +43,13 @@ These are the register-control rules. Violating any of them makes the item inval
    (If a source text contains joiners or spacing quirks that make this check unreliable, record the exception in the item's `notes`, do not silence the test.)
 3. **No additions, no deletions.** No slang, no English insertions, no filler words, no change of formality, no paraphrase, no "fixing" of the source text.
 4. **Protected tokens are unchanged** (section 3.3).
-5. **One word, one spelling per condition.** Within a condition, the same Urdu word is spelled the same way everywhere in the dataset
-   (enforced through the RU-P lexicon, section 4.3). Variation exists **between** conditions, not within one.
+5. **One word, one spelling per condition.** Within a condition, the same Urdu word is spelled the same way everywhere in the dataset (enforced through the RU-P lexicon, section 4.3). Variation exists **between** conditions, not within one.
 6. **Determinism.** The same input always produces the same output (no randomness, no model calls in RU-R/RU-X).
 
 ### 3.3 Protected tokens (never altered by RU-R or RU-X)
 
 - Digits and numbers: kept exactly as in the source, including Urdu-script digits, unless the team decides otherwise at G0 and logs it in section 11.
-- Option labels A, B, C, D.
+- Option labels A, B, C, D and E, where applicable.
 - Formulas, chemical symbols, units and mathematical notation.
 - URLs, email addresses, code-like strings.
 - English words already written in Latin script in the source.
@@ -60,7 +58,7 @@ These are the register-control rules. Violating any of them makes the item inval
 ### 3.4 Punctuation (PROPOSED; confirm at G0)
 
 Convert Urdu punctuation to its Latin counterpart **identically in RU-P, RU-R and RU-X**, so punctuation is never a hidden difference between the variants:
-`؟` to `?`, `،` to `,`, `۔` to `.`. Quotation marks and brackets are kept as they are. Record any change to this policy in section 11.
+`ØŸ` to `?`, `ØŒ` to `,`, `Û”` to `.`. Quotation marks and brackets are kept as they are. Record any change to this policy in section 11.
 
 ## 4. RU-P: phonetic Roman Urdu (the reference spelling)
 
@@ -78,15 +76,15 @@ Examples are taken from common function words and the illustrative forms in the 
 
 | # | Decision | PROPOSED default | Examples | Confirmed? |
 |---|---|---|---|---|
-| C1 | Short and long "a" sounds | Written as `a` | `nahin`, `jawab`, `sawal` | ☐ |
-| C2 | The negative word | `nahin` | | ☐ |
-| C3 | Common function words | Fixed forms | `kya`, `yeh`, `woh`, `aur`, `ke`, `ki`, `ko`, `se`, `mein`, `hai`, `hain` | ☐ |
-| C4 | Aspirated consonants | Consonant + `h` | to be listed from real items | ☐ |
-| C5 | Digraphs for single Urdu sounds | `kh`, `gh`, `sh`, `ch`, `zh`, `q` | | ☐ |
-| C6 | Distinctions Roman letters cannot express (e.g. retroflex vs dental, several "s/z/t/h" letters) | Not distinguished in RU-P | | ☐ |
-| C7 | Nasalisation | Written with `n` | | ☐ |
-| C8 | Izafat and compound words | Decide one convention; document examples | | ☐ |
-| C9 | Hamza and ain | Decide one convention; document examples | | ☐ |
+| C1 | Short and long "a" sounds | Written as `a` | `nahin`, `jawab`, `sawal` | â˜ |
+| C2 | The negative word | `nahin` | | â˜ |
+| C3 | Common function words | Fixed forms | `kya`, `yeh`, `woh`, `aur`, `ke`, `ki`, `ko`, `se`, `mein`, `hai`, `hain` | â˜ |
+| C4 | Aspirated consonants | Consonant + `h` | to be listed from real items | â˜ |
+| C5 | Digraphs for single Urdu sounds | `kh`, `gh`, `sh`, `ch`, `zh`, `q` | | â˜ |
+| C6 | Distinctions Roman letters cannot express (e.g. retroflex vs dental, several "s/z/t/h" letters) | Not distinguished in RU-P | | â˜ |
+| C7 | Nasalisation | Written with `n` | | â˜ |
+| C8 | Izafat and compound words | Decide one convention; document examples | | â˜ |
+| C9 | Hamza and ain | Decide one convention; document examples | | â˜ |
 
 **Procedure:** apply the defaults to a **pilot of 30 items**, have native readers review them, correct the table, and only then run the drafting step on all 500.
 Every correction made later is logged and, if it recurs, becomes a rule (section 9.4).
@@ -98,8 +96,7 @@ The draft step must look up the lexicon first, so the same word is never spelled
 
 ### 4.4 Drafting and review
 
-1. A non-evaluated LLM (decision 1) drafts RU-P for the question and options of each item. The prompt must say: transliterate only; do not translate or correct;
-   keep protected tokens unchanged; follow the conventions in section 4.2; return structured output.
+1. A non-evaluated LLM (decision 1) drafts RU-P for the question and options of each item. The prompt must say: transliterate only; do not translate or correct; keep protected tokens unchanged; follow the conventions in section 4.2; return structured output.
 2. The draft is **never trusted**. It enters manual verification (section 9).
 3. Record the exact prompt text and model string used, in this file or in `data/interim/`.
 
@@ -117,8 +114,7 @@ The draft step must look up the lexicon first, so the same word is never spelled
 
 ### 5.2 Rules for adding an operation
 
-An operation may enter RU-R only if (a) it is attested in a real spelling-variant source (e.g. the spelling-variant list in Soomro et al. 2024, or real
-text such as PURUTT if its license allows use), **or** (b) it is explicitly documented as a *synthetic* operation and reported as such in the paper.
+An operation may enter RU-R only if (a) it is attested in a real spelling-variant source (e.g. the spelling-variant list in Soomro et al. 2024, or real text such as PURUTT if its license allows use), **or** (b) it is explicitly documented as a *synthetic* operation and reported as such in the paper.
 Each operation needs at least 3 unit-test examples.
 
 ### 5.3 Machine-readable form
@@ -167,8 +163,7 @@ This is a validity point for the paper: RU-X must represent a plausible spelling
 
 - 100 items fully checked, **nested 200-item subset first**, split about 33 per person.
 - **Nobody checks an item they drafted or generated themselves.**
-- For each item and each Roman Urdu condition the checker records (columns for `annotations/` sheets): `item_id, condition, rater, meaning_preserved (y/n), words_unchanged (y/n),
-  protected_tokens_ok (y/n), convention_followed (y/n), corrected_text, note`.
+- For each item and each Roman Urdu condition the checker records (columns for `annotations/` sheets): `item_id, condition, rater, meaning_preserved (y/n), words_unchanged (y/n), protected_tokens_ok (y/n), convention_followed (y/n), corrected_text, note`.
 
 ### 9.2 Kappa check
 
@@ -178,15 +173,13 @@ This is a validity point for the paper: RU-X must represent a plausible spelling
 
 ### 9.3 Spot-check of the remaining items
 
-- The size is fixed at G0 (decision 4). Guidance: with a spot-check of n items and **zero** errors found, the 95% upper bound on the true error rate is roughly 3/n
-  (for n = 60, about 5%). The pass criterion from the proposal is an error rate **below 10%**; choose n so that this is meaningful.
+- The size is fixed at G0 (decision 4). Guidance: with a spot-check of n items and **zero** errors found, the 95% upper bound on the true error rate is roughly 3/n (for n = 60, about 5%). The pass criterion from the proposal is an error rate **below 10%**; choose n so that this is meaningful.
 - Sample at random, stratified by domain, with the seed recorded.
 - If the error rate is 10% or more: fix the rules, regenerate the affected variants, re-check, and report this honestly.
 
 ### 9.4 Corrections log
 
-Every manual correction is logged. A correction type that recurs becomes a rule (word-map entry or regex), the rule version is bumped (section 11), the variants
-are regenerated and the affected items are re-checked.
+Every manual correction is logged. A correction type that recurs becomes a rule (word-map entry or regex), the rule version is bumped (section 11), the variants are regenerated and the affected items are re-checked.
 
 ## 10. RT: round-trip (diagnostic only)
 
@@ -200,6 +193,8 @@ are regenerated and the affected items are re-checked.
 
 | Version | Date | Author | Change | Why | Items affected / re-checked |
 |---|---|---|---|---|---|
+| v2 | 2026-11-28 | Role A (team-agreed policy) | Superseded the v1 four-option-only decision; retain all original 4-option and 5-option items without replacement | Keep the dataset faithful to the source schema and the agreed 4/5-option policy | 500 items: 497 with 4 options and 3 with 5 options |
+| v1 | 2026-11-19 | Zia Ullah (covering for Sudais) | Recorded decisions 3â€“6; replaced the three selected five-option records with next-ranked four-option records in the same domains | Keep the 500-item sample at four options per item while preserving the seed-42 stratified order | `umm-0118`, `umm-0266`, `umm-0401`; no Roman Urdu variants exist yet |
 | v0 | (start) | A | Initial draft created | Kick-off | none |
 
 ## 12. Acceptance checklist before the freeze (Gate G2)

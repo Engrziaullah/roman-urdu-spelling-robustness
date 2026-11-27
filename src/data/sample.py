@@ -1,6 +1,7 @@
 
 import argparse
 import csv
+import hashlib
 import json
 import random
 from collections import Counter, defaultdict
@@ -38,7 +39,14 @@ def normalize_options(options):
     raise ValueError("Unsupported options format")
 
 
-def create_sample(seed, per_domain, output_file, report_file=None):
+def create_sample(
+    seed: int,
+    per_domain: int,
+    output_file: str | Path,
+    report_file: str | Path | None = None,
+) -> None:
+    output_file = Path(output_file)
+
     with open(INPUT_FILE, encoding="utf-8") as f:
         records = json.load(f)
 
@@ -73,19 +81,33 @@ def create_sample(seed, per_domain, output_file, report_file=None):
             options = normalize_options(record["options"])
             gold = str(record["correct_key"]).upper()
 
+            if len(options) not in (4, 5):
+                raise ValueError(
+                    f"Expected 4 or 5 options in source ID {record['id']}"
+                )
+
             if not options or not record.get("question"):
-                raise ValueError(f"Empty question/options in source ID {record['id']}")
+                raise ValueError(
+                    f"Empty question/options in source ID {record['id']}"
+                )
 
             if isinstance(record["options"], dict):
                 option_keys = [str(k).upper() for k in record["options"]]
-                if gold not in option_keys:
-                    raise ValueError(f"Gold key mismatch in source ID {record['id']}")
+
+                if len(option_keys) not in (4, 5) or gold not in option_keys:
+                    raise ValueError(
+                        f"Gold key mismatch in source ID {record['id']}"
+                    )
             else:
                 if gold not in "ABCDE"[:len(options)]:
-                    raise ValueError(f"Invalid gold key in source ID {record['id']}")
+                    raise ValueError(
+                        f"Invalid gold key in source ID {record['id']}"
+                    )
 
             if any(not str(option).strip() for option in options):
-                raise ValueError(f"Empty option in source ID {record['id']}")
+                raise ValueError(
+                    f"Empty option in source ID {record['id']}"
+                )
 
             selected.append({
                 "domain_rank": domain_rank,
@@ -104,7 +126,7 @@ def create_sample(seed, per_domain, output_file, report_file=None):
     final_rows = []
 
     for sample_rank, item in enumerate(selected, start=1):
-        final_rows.append({
+        final_row = {
             "item_id": f"umm-{sample_rank:04d}",
             "source_row": item["source_row"],
             "domain": item["domain"],
@@ -116,18 +138,23 @@ def create_sample(seed, per_domain, output_file, report_file=None):
             "verified": True,
             "sample_rank": sample_rank,
             "notes": "",
-        })
+        }
+        final_rows.append(final_row)
 
-    with open(output_file, "w", encoding="utf-8") as f:
+    with open(output_file, "w", encoding="utf-8", newline="\n") as f:
         for row in final_rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    option_counts = Counter(len(row["options"]) for row in final_rows)
 
     domain_counts = Counter(row["domain"] for row in final_rows)
     subject_counts = Counter(
         (row["domain"], row["subject"]) for row in final_rows
     )
 
-    first_200 = Counter(row["domain"] for row in final_rows[:200])
+    first_200 = Counter(
+        row["domain"] for row in final_rows[:200]
+    )
 
     if len(final_rows) != per_domain * len(domains):
         raise ValueError("Incorrect total sample size")
@@ -135,15 +162,30 @@ def create_sample(seed, per_domain, output_file, report_file=None):
     if any(count != per_domain for count in domain_counts.values()):
         raise ValueError("Domain sample count verification failed")
 
-    if any(count != 40 for count in first_200.values()):
+    if sum(first_200.values()) != min(200, len(final_rows)):
         raise ValueError("First 200 rank verification failed")
+
+    if first_200 and max(first_200.values()) - min(first_200.values()) > 1:
+        raise ValueError("First 200 rank distribution is unbalanced")
 
     if len({row["item_id"] for row in final_rows}) != len(final_rows):
         raise ValueError("Duplicate item IDs found")
 
-    report_file = Path(report_file) if report_file else REPORT_FILE
-    report_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(report_file, "w", encoding="utf-8") as f:
+    with open(output_file, "r", encoding="utf-8", newline="") as f:
+        normalized_jsonl = f.read().replace("\r\n", "\n")
+
+    normalized_hash = hashlib.sha256(
+        normalized_jsonl.encode("utf-8")
+    ).hexdigest()
+
+    report_path = (
+        Path(report_file) if report_file is not None else REPORT_FILE
+    )
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(
+        report_path, "w", encoding="utf-8", newline="\n"
+    ) as f:
         f.write("# Sampling Report\n\n")
         f.write(f"- Date: {date.today().isoformat()}\n")
         f.write(f"- Seed: {seed}\n")
@@ -160,6 +202,21 @@ def create_sample(seed, per_domain, output_file, report_file=None):
         for domain, count in sorted(domain_counts.items()):
             f.write(f"- {domain}: {count}\n")
 
+        f.write("\n## Option counts in original selected sample\n\n")
+        for option_count, count in sorted(option_counts.items()):
+            f.write(f"- {option_count} options: {count}\n")
+
+        f.write(
+            "\n- Selection policy: all selected items are retained "
+            "with their original number of options (4 or 5); "
+            "no replacement is performed.\n"
+        )
+
+        f.write(
+            f"- Normalized UTF-8 SHA-256 (CRLF normalized to LF): "
+            f"`{normalized_hash}`\n"
+        )
+
         f.write("\n## Selected records by subject\n\n")
         for (domain, subject), count in sorted(subject_counts.items()):
             f.write(f"- {domain} / {subject}: {count}\n")
@@ -169,19 +226,23 @@ def create_sample(seed, per_domain, output_file, report_file=None):
             f.write(f"- {reason}: {count}\n")
 
         f.write("\n## Rank verification\n\n")
-        f.write("- Total ranks: 1–500\n")
-        f.write("- First 200 ranks: 40 records per domain\n")
-        f.write("- All domain counts: 100\n")
+        f.write(f"- Total ranks: 1-{len(final_rows)}\n")
+        f.write(
+            f"- First {min(200, len(final_rows))} ranks: "
+            f"{dict(sorted(first_200.items()))}\n"
+        )
+        f.write(
+            f"- All domain counts: {dict(sorted(domain_counts.items()))}\n"
+        )
 
     print("Sampling completed successfully.")
     print("Seed:", seed)
     print("Total selected:", len(final_rows))
-    print("Records by domain:")
-    for domain, count in sorted(domain_counts.items()):
-        print(f"{domain}: {count}")
+    print("Option counts:", dict(sorted(option_counts.items())))
+    print("Records by domain:", dict(sorted(domain_counts.items())))
     print("First 200 rank counts:", dict(sorted(first_200.items())))
     print("Output:", output_file)
-    print("Report:", report_file)
+    print("Report:", report_path)
 
 
 def main():

@@ -1,0 +1,8 @@
+You are answering a multiple-choice question. The question and options may be in Urdu script or in Roman Urdu (Urdu written in Latin letters).
+Choose the single correct option.
+Reply with only the letter: {letters}.
+
+Question: {question}
+{options}
+
+Answer:

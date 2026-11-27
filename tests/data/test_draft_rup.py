@@ -1,4 +1,4 @@
-﻿"""RU-P draft tests with labelled TOY data and a fake client; no network calls."""
+"""RU-P draft tests with labelled TOY data and a fake client; no network calls."""
 
 import csv
 import json

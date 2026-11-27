@@ -1,0 +1,62 @@
+# configs/models.yaml (owner: Role B, Zia Ullah)
+#
+# HOW TO FILL (Gate G0, Day 1):
+#  1. Open each provider's OFFICIAL, CURRENT free-tier page and copy the model string and the limits.
+#     Do not use memory or old notes: free tiers change without notice.
+#  2. Write today's date (YYYY-MM-DD) in checked_on.
+#  3. Use 3 models from DIFFERENT families (a 4th is optional; see docs/PLAN.md cut list).
+#  4. Each person puts their own key in a local .env (never commit it). Keep the api_key_env names below
+#     or change them to match the variable names in your .env.
+#  5. Every "TODO" must be replaced before a real run. The loader refuses to run while a TODO remains.
+#  6. Supported providers in src/eval/providers.py: gemini, groq, openrouter.
+#
+# Slugs become folder names under results/raw/<slug>/. Keep them short, lowercase, no spaces.
+# The providers and slugs below are PROPOSED defaults, not approved decisions.
+
+evaluated_models:
+  # Proposed earlier in the repo: Groq with llama-3.1-8b-instant. Check that this model is still
+  # listed and free on Groq's current model/limits pages before using it; the team must approve it.
+  # TPM 8000 from header; RPM and tokens/day unverified: confirm in console
+  - slug: model-1
+    provider: groq
+    model_string: qwen/qwen3.8-27b
+    api_key_env: GROQ_API_KEY
+    requests_per_minute: 20         # self-imposed throttle, NOT the provider's published RPM
+    requests_per_day: 1000          # from x-ratelimit-limit-requests header, 2026-11-19
+    checked_on: "2026-11-19"
+    # Groq model docs (2026-11-20): max output 16,384; reasoning_effort=low supported.
+    max_output_tokens: 4096
+    reasoning_effort: low
+
+  - slug: model-2
+    provider: gemini
+    model_string: TODO              # exact string from Google's current model list (free tier)
+    api_key_env: GEMINI_API_KEY
+    requests_per_minute: TODO
+    requests_per_day: TODO
+    checked_on: TODO
+
+  - slug: model-3
+    provider: openrouter
+    model_string: TODO              # exact string of a currently free model on OpenRouter
+    api_key_env: OPENROUTER_API_KEY
+    requests_per_minute: TODO
+    requests_per_day: TODO
+    checked_on: TODO
+
+  # Optional 4th model: add another entry with the same fields only if the free limits allow
+  # about 2,500 requests per model for the main run (500 items x 5 conditions) plus the noise repeats.
+
+# Model used ONLY for the RU-P draft (Role A, task A3) and the RT back-transliteration.
+# Rules (docs/RULES.md decisions 1 and 2):
+#  - It must NOT be the same model as any entry in evaluated_models (different provider or different model).
+#  - Record the exact model string and the date of the limits you checked.
+helper:
+  provider: groq
+  model_string: openai/gpt-oss-120b
+  api_key_env: GROQ_API_KEY
+  checked_on: "2026-11-19"
+  # Groq model docs (2026-11-20): max output 65,536; reasoning_effort=low supported.
+  max_output_tokens: 4096
+  reasoning_effort: low
+  note: Must not be one of the evaluated models. # reasoning model; set a large max output

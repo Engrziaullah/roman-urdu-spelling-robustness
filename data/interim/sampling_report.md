@@ -23,6 +23,13 @@
 - STEM: 100
 - Social Sciences: 100
 
+## Option counts in original selected sample
+
+- 4 options: 497
+- 5 options: 3
+
+- Selection policy: All selected items are retained with their original number of options; no replacement is performed.
+
 ## Selected records by subject
 
 - Humanities / ethics: 2

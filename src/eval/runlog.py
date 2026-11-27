@@ -1,0 +1,139 @@
+"""Append contract-shaped result rows and concise real-run summaries."""
+
+from __future__ import annotations
+
+import json
+import re
+from datetime import date
+from pathlib import Path
+from typing import Any, Mapping
+
+
+RESULT_FIELDS = (
+    "run_id",
+    "model_slug",
+    "model_string",
+    "provider",
+    "date_utc",
+    "item_id",
+    "condition",
+    "repeat",
+    "prompt_hash",
+    "raw_output",
+    "parsed_answer",
+    "valid",
+    "latency_s",
+    "error",
+)
+
+
+def _safe_slug(model_slug: str) -> str:
+    if not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", model_slug):
+        raise ValueError("model_slug must contain only lowercase letters, digits, '.', '_' or '-'.")
+    return model_slug
+
+
+def append_result(
+    output_root: str | Path,
+    model_slug: str,
+    run_id: str,
+    row: Mapping[str, Any],
+) -> Path:
+    """Append exactly one CONTRACTS section 2 row without overwriting prior rows."""
+    expected = set(RESULT_FIELDS)
+    actual = set(row)
+    if actual != expected:
+        raise ValueError(
+            f"Result row fields mismatch; missing={sorted(expected - actual)}, "
+            f"extra={sorted(actual - expected)}."
+        )
+    if row["model_slug"] != model_slug or row["run_id"] != run_id:
+        raise ValueError("Result row model_slug/run_id must match its output path.")
+    if not isinstance(row["valid"], bool):
+        raise ValueError("Result row 'valid' must be boolean.")
+    latency = row["latency_s"]
+    if isinstance(latency, bool) or not isinstance(latency, (int, float)) or latency < 0:
+        raise ValueError("Result row 'latency_s' must be a non-negative number.")
+    if not isinstance(row["error"], (str, type(None))):
+        raise ValueError("Result row 'error' must be text or null.")
+
+    directory = Path(output_root) / _safe_slug(model_slug)
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{run_id}.jsonl"
+    serialized = json.dumps(dict(row), ensure_ascii=False, allow_nan=False)
+    with path.open("a", encoding="utf-8", newline="\n") as file:
+        file.write(serialized + "\n")
+    return path
+
+
+def read_daily_call_count(path: str | Path, model_slug: str, run_date: str) -> int:
+    """Return logged provider calls for one model and UTC date."""
+    date.fromisoformat(run_date)
+    log_path = Path(path)
+    if not log_path.exists():
+        return 0
+    model_marker = f"| `{model_slug}` ("
+    total = 0
+    try:
+        with log_path.open(encoding="utf-8") as file:
+            for line_number, line in enumerate(file, start=1):
+                if not line.startswith(f"- {run_date}T") or model_marker not in line:
+                    continue
+                match = re.search(r"\bcalls=(\d+)(?:,|\s|$)", line)
+                if match is None:
+                    raise ValueError(
+                        f"Run log entry lacks calls count at {log_path}:{line_number}."
+                    )
+                total += int(match.group(1))
+    except OSError as exc:
+        raise ValueError(f"Cannot read run log {log_path}: {exc}") from exc
+    return total
+
+
+def append_run_summary(
+    path: str | Path,
+    *,
+    date_utc: str,
+    run_id: str,
+    model_slug: str,
+    model_string: str,
+    calls_made: int,
+    cache_hits: int,
+    errors: int,
+    invalid_rate: float,
+    latency_mean_s: float | None,
+    latency_min_s: float | None,
+    latency_max_s: float | None,
+    stop_reason: str = "complete",
+    error_count: int | None = None,
+    answered_requests: int | None = None,
+    invalid_answer_count: int | None = None,
+    invalid_answer_rate: float | None = None,
+    resume_time_utc: str | None = None,
+) -> None:
+    """Append a Markdown summary for a real run."""
+    output = Path(path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if not output.exists():
+        output.write_text("# Run log\n\n", encoding="utf-8")
+    mean = "n/a" if latency_mean_s is None else f"{latency_mean_s:.4f}"
+    minimum = "n/a" if latency_min_s is None else f"{latency_min_s:.4f}"
+    maximum = "n/a" if latency_max_s is None else f"{latency_max_s:.4f}"
+    ec = errors if error_count is None else error_count
+    line = (
+        f"- {date_utc} | `{run_id}` | `{model_slug}` (`{model_string}`): "
+        f"calls={calls_made}, cache_hits={cache_hits}, errors={ec}, "
+        f"invalid_rate={invalid_rate:.4f}, latency_s mean/min/max="
+        f"{mean}/{minimum}/{maximum}, stop_reason={stop_reason}"
+    )
+    if answered_requests is not None:
+        line += f", answered={answered_requests}"
+    if invalid_answer_count is not None:
+        line += f", invalid_answers={invalid_answer_count}"
+    if invalid_answer_rate is not None:
+        line += f", invalid_answer_rate={invalid_answer_rate:.4f}"
+    if resume_time_utc:
+        line += f", resume_time_utc={resume_time_utc}"
+    line += "\n"
+    with output.open("a", encoding="utf-8", newline="\n") as file:
+        file.write(line)

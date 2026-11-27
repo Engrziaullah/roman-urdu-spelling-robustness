@@ -53,40 +53,55 @@ Roles rotate in Phase 3, where everyone writes a paper section. Shared files (`R
 ## 5. Repository layout
 
 ```
-roman-urdu-spelling-robustnes/
+roman-urdu-spelling-robustness/
 ├── README.md
-├── docs/
-│   ├── PLAN.md            # 3-phase, 4-day plan, gates, task split
-│   ├── CONTRACTS.md       # data and result schemas (the interface between A, B, C)
-│   ├── RULES.md           # spelling operation rules (Phase 1)
-│   ├── LITERATURE.md      # verified literature table (Phase 1)
-│   └── prompts/           # Antigravity session and Day 1 task prompts
-├── configs/               # models, prompt template, seed
-├── data/
-│   ├── raw/               # UrduMMLU download (not committed)
-│   ├── interim/           # drafts, before manual verification
-│   └── processed/         # FROZEN dataset (committed, hash recorded)
-├── src/
-│   ├── data/              # sampling, variant generation, edit distance
-│   ├── eval/              # API clients, prompt, parser, runner
-│   └── analysis/          # flip rates, McNemar, mixed-effects, plots
-├── annotations/           # manual verification sheets, kappa inputs
-├── results/
-│   ├── raw/               # one JSONL per model/run (committed)
-│   ├── tables/
-│   └── figures/
-├── paper/
 ├── .env.example
-└── requirements.txt
+├── .gitignore
+├── requirements.txt
+├── configs/
+│   ├── config.yaml
+│   ├── models.yaml
+│   └── prompt.txt
+├── docs/
+├── AGENTS.md
+│   ├── CONTRACTS.md
+│   ├── LITERATURE.md
+│   ├── PLAN.md
+│   ├── RULES.md
+│   └── prompts/
+├── data/
+│   ├── raw/
+│   │   ├── stats.json
+│   │   └── urdummlu.json
+│   ├── interim/
+│   └── processed/
+│       └── items_nu.jsonl
+├── src/
+│   ├── analysis/
+│   ├── data/
+│   └── eval/
+├── tests/
+│   ├── analysis/
+│   ├── data/
+│   ├── eval/
+│   └── fixtures/
+├── results/
+│   └── RUN_LOG.md
 ```
 
-Folders marked as phase outputs do not exist until the owner creates them.
+`data/raw/` currently contains committed UrduMMLU files (`urdummlu.json` and
+`stats.json`); the earlier "not committed" note was inaccurate. The team still
+needs to decide how these source files should be handled. `data/processed/`
+currently contains `items_nu.jsonl`; `FROZEN.md` is not present yet.
+`src/data/rules/`, `annotations/`, `paper/`, and the `results/raw/`,
+`results/tables/`, and `results/figures/` output directories are not present in
+the current tree.
 
 ## 6. Setup
 
 ```bash
-git clone https://github.com/Engrziaullah/roman-urdu-spelling-robustnes.git
-cd roman-urdu-spelling-robustnes
+git clone https://github.com/Engrziaullah/roman-urdu-spelling-robustness.git
+cd roman-urdu-spelling-robustness
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env    # then add YOUR OWN API keys; never commit .env
@@ -131,10 +146,12 @@ Entry-point commands will be added to this section by each owner when their modu
 
 ## 11. Progress
 
+Evidence-based status (updated 2026-11-24; no gate marked complete without team agreement/artifacts).
+
 | Gate | Date/time | Condition | Status |
 |---|---|---|---|
-| G0 | Day 1, hour 2 | Contracts, repo skeleton, seed, prompt and model list agreed | ⬜ |
-| G1 | End Day 1 | Sample committed, RU-P draft done, harness runs on NU | ⬜ |
-| G2 | End Day 2 | Dataset verified and **frozen**, kappa computed | ⬜ |
-| G3 | End Day 3 | All raw model outputs collected, invalid rate checked | ⬜ |
-| G4 | End Day 4 | Analysis, draft, code and data released (`v1.0`) | ⬜ |
+| G0 | Day 1, hour 2 | Contracts, repo skeleton, seed, prompt and model list agreed | ⬜ Not complete. Evidence: repo skeleton, `configs/prompt.txt`, `configs/config.yaml` seed 42, and `configs/models.yaml` exist; model-1/helper configured, model-2/model-3 TODO; contracts shared-update proposed in PR #25 (pending agreement/merge). |
+| G1 | End Day 1 | Sample committed, RU-P draft done, harness runs on NU | ⬜ Not complete. Evidence: `data/processed/items_nu.jsonl` committed on `origin/main` (500 items, hash `6ca8f229586a1c5c1c551166e7a6cdd36e66f2f22cf314c0f8a2cb3c4741b74d`, normalized CRLF→LF); eval harness/scripts present (PR #22 merged, https://github.com/Engrziaullah/roman-urdu-spelling-robustness/pull/22) and NU dry-run/mock verified; RU-P draft completion and real NU run pending/blocked (issue #23). |
+| G2 | End Day 2 | Dataset verified and **frozen**, kappa computed | ⬜ Not complete. Evidence: `data/processed/FROZEN.md` and `items_v1.jsonl` not present; kappa artifacts not verified complete. |
+| G3 | End Day 3 | All raw model outputs collected, invalid rate checked | ⬜ Not complete. Evidence: `results/RUN_LOG.md` shows no real runs recorded; no complete NU/all-condition raw outputs collected. |
+| G4 | End Day 4 | Analysis, draft, code and data released (`v1.0`) | ⬜ Not complete. |

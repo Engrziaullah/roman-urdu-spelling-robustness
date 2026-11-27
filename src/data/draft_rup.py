@@ -1,7 +1,6 @@
-﻿"""RU-P draft workflow scaffold with an injected client and no provider adapter."""
+"""RU-P draft workflow scaffold with an injected client and no provider adapter."""
 
 from __future__ import annotations
-
 import argparse
 import csv
 import hashlib
