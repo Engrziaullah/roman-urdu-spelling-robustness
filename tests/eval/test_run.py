@@ -130,6 +130,39 @@ def test_resume_skips_already_recorded_request(tmp_path: Path) -> None:
     assert provider.calls == 1
 
 
+def test_rank_max_selects_all_eligible_items_in_rank_order(tmp_path: Path) -> None:
+    items = read_items(MOCK_ITEMS)
+    reordered = list(reversed(items))
+    items_path = tmp_path / "reordered.jsonl"
+    items_path.write_text(
+        "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in reordered),
+        encoding="utf-8",
+    )
+    expected_ids = [
+        item["item_id"]
+        for item in sorted(
+            (
+                item
+                for item in items
+                if item["condition"] == "NU" and item["sample_rank"] <= 3
+            ),
+            key=lambda item: item["sample_rank"],
+        )
+    ]
+
+    summary = _run(tmp_path, items_path=items_path, rank_max=3)
+    output = (
+        tmp_path
+        / "temporary-results"
+        / "fixture"
+        / "2026-11-16_nu_r1.jsonl"
+    )
+    rows = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+
+    assert summary.processed_requests == 3
+    assert [row["item_id"] for row in rows] == expected_ids
+
+
 def test_resume_retries_failed_rows_and_latest_attempt_becomes_authoritative(
     tmp_path: Path,
 ) -> None:

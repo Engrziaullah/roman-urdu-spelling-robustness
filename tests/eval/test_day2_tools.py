@@ -215,3 +215,13 @@ def test_run_planner_reports_unknown_todos_and_rate_limited_days(
     assert plans[1]["requests_per_minute"] == "unknown"
     assert plans[1]["requests_per_day"] == "unknown"
     assert plans[1]["days"] == "unknown"
+
+    core_plans = plan_run_counts(
+        items_path,
+        models_path,
+        config_path,
+        requested_conditions=("NU",),
+        rank_max=1,
+    )
+    assert core_plans[0]["full_pass_requests"] == 1
+    assert core_plans[0]["noise_extra_requests"] == 0

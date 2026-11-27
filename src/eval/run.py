@@ -469,24 +469,38 @@ def _select_items(
     conditions: Sequence[str],
     max_items: int | None,
     item_ids: Sequence[str] | None = None,
+    rank_max: int | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     item_order: list[str] = []
+    rank_by_id: dict[str, int] = {}
     by_condition: dict[str, dict[str, dict[str, Any]]] = {}
     for item in items:
         item_id = item["item_id"]
         if item_id not in item_order:
             item_order.append(item_id)
+            rank_by_id[item_id] = item["sample_rank"]
         by_condition.setdefault(item["condition"], {})[item_id] = item
+    if rank_max is not None:
+        if isinstance(rank_max, bool) or rank_max <= 0:
+            raise ValueError("rank_max must be a positive integer.")
+        item_order = sorted(
+            (item_id for item_id in item_order if rank_by_id[item_id] <= rank_max),
+            key=rank_by_id.__getitem__,
+        )
     if item_ids is not None:
         if len(item_ids) != len(set(item_ids)):
             raise ValueError("item_ids must not contain duplicates.")
-        known_ids = set(item_order)
+        known_ids = set(rank_by_id)
         unknown_ids = [item_id for item_id in item_ids if item_id not in known_ids]
         if unknown_ids:
             raise RunInputError(
                 f"Requested item_id {unknown_ids[0]!r} is missing from the items file."
             )
-        item_order = list(item_ids)
+        if rank_max is None:
+            item_order = list(item_ids)
+        else:
+            selected_ids = set(item_ids)
+            item_order = [item_id for item_id in item_order if item_id in selected_ids]
     if max_items is not None:
         if isinstance(max_items, bool) or max_items <= 0:
             raise ValueError("max_items must be a positive integer.")
@@ -515,6 +529,7 @@ def run_pipeline(
     repeats: int = 1,
     purpose: str = "nu",
     max_items: int | None = None,
+    rank_max: int | None = None,
     mock: bool = False,
     frozen_marker: str | Path | None = None,
     run_log_path: str | Path | None = None,
@@ -555,7 +570,7 @@ def run_pipeline(
         _verify_frozen_items_hash(items_path, marker)
 
     items = read_items(items_path, mock=mock)
-    selected = _select_items(items, conditions, max_items, item_ids)
+    selected = _select_items(items, conditions, max_items, item_ids, rank_max)
     calls_made = 0
     cache_hits = 0
     error_count = 0
@@ -816,6 +831,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--purpose")
     parser.add_argument("--max-items", type=int)
+    parser.add_argument(
+        "--rank-max",
+        type=int,
+        help="Select items with sample_rank <= N, ordered by sample_rank.",
+    )
     parser.add_argument("--config", default="configs/config.yaml")
     parser.add_argument("--models", default="configs/models.yaml")
     parser.add_argument(
@@ -843,6 +863,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error(f"Unsupported condition(s): {sorted(set(conditions) - CONDITIONS)}.")
     if args.repeats < 1:
         parser.error("--repeats must be a positive integer.")
+    if args.rank_max is not None and args.rank_max <= 0:
+        parser.error("--rank-max must be a positive integer.")
     try:
         item_ids: Sequence[str] | None = None
         purpose = args.purpose or ("noise" if args.noise_subset else "nu")
@@ -905,7 +927,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.dry_run:
             items = read_items(args.items, mock=args.mock)
-            selected = _select_items(items, conditions, args.max_items, item_ids)
+            selected = _select_items(
+                items,
+                conditions,
+                args.max_items,
+                item_ids,
+                args.rank_max,
+            )
             request_count = sum(len(rows) for rows in selected.values()) * repeats
             print(
                 json.dumps(
@@ -934,6 +962,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             repeats=repeats,
             purpose=purpose,
             max_items=args.max_items,
+            rank_max=args.rank_max,
             mock=mock,
             run_log_path=settings.paths["run_log"],
             item_ids=item_ids,
