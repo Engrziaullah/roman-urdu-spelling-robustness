@@ -176,6 +176,16 @@ def test_pipeline_rehearsal_guards_five_options_resume_and_checker(
         details["valid_rows"] == 2
         for details in report["models"]["fixture"]["conditions"].values()
     )
+    core_report = check_results(
+        output_dir,
+        items_path,
+        models_path,
+        config_path,
+        conditions=("NU",),
+        rank_max=1,
+    )
+    assert core_report["ok"] is True
+    assert core_report["models"]["fixture"]["conditions"]["NU"]["rows"] == 1
 
     with output_file.open("a", encoding="utf-8", newline="\n") as file:
         file.write(output_file.read_text(encoding="utf-8").splitlines()[0] + "\n")

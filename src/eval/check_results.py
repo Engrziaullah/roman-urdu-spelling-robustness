@@ -36,16 +36,34 @@ def check_results(
     config_path: str | Path,
     *,
     invalid_rate_threshold: float = 0.05,
+    conditions: Sequence[str] | None = None,
+    rank_max: int | None = None,
 ) -> dict[str, Any]:
     """Return counts, missing/duplicate keys, validation findings, and dates."""
     if not 0 <= invalid_rate_threshold <= 1:
         raise ValueError("invalid_rate_threshold must be between 0 and 1.")
     items = read_items(items_path)
+    if rank_max is not None:
+        if isinstance(rank_max, bool) or rank_max <= 0:
+            raise ValueError("rank_max must be a positive integer.")
+        items = [item for item in items if item["sample_rank"] <= rank_max]
+    filter_items = conditions is not None or rank_max is not None
+    available_conditions = {item["condition"] for item in items}
+    selected_conditions = set(conditions) if conditions is not None else available_conditions
+    unsupported_conditions = selected_conditions - available_conditions
+    if unsupported_conditions:
+        raise ValueError(
+            f"Selected conditions are absent from the items file: "
+            f"{sorted(unsupported_conditions)}."
+        )
+    items = [item for item in items if item["condition"] in selected_conditions]
+    if not items:
+        raise ValueError("No items remain after applying the condition/rank filters.")
     item_map = {
         (item["item_id"], item["condition"]): item
         for item in items
     }
-    conditions = sorted({item["condition"] for item in items})
+    conditions = sorted(selected_conditions)
 
     models_data = _read_yaml(Path(models_path))
     model_entries = models_data.get("evaluated_models")
@@ -163,6 +181,8 @@ def check_results(
                 and isinstance(repeat, int)
                 and not isinstance(repeat, bool)
             ):
+                continue
+            if filter_items and (item_id, condition) not in item_map:
                 continue
 
             model_slugs.add(model_slug)
@@ -338,7 +358,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--models", default="configs/models.yaml")
     parser.add_argument("--config", default="configs/config.yaml")
     parser.add_argument("--invalid-rate-threshold", type=float, default=0.05)
+    parser.add_argument(
+        "--conditions",
+        help="Comma-separated conditions to check; defaults to all conditions in the items file.",
+    )
+    parser.add_argument(
+        "--rank-max",
+        type=int,
+        help="Check only items with sample_rank <= N.",
+    )
     args = parser.parse_args(argv)
+    selected_conditions = (
+        tuple(part.strip() for part in args.conditions.split(",") if part.strip())
+        if args.conditions
+        else None
+    )
+    if args.conditions and not selected_conditions:
+        parser.error("--conditions must contain at least one condition.")
+    if args.rank_max is not None and args.rank_max <= 0:
+        parser.error("--rank-max must be a positive integer.")
     try:
         report = check_results(
             args.results_dir,
@@ -346,6 +384,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.models,
             args.config,
             invalid_rate_threshold=args.invalid_rate_threshold,
+            conditions=selected_conditions,
+            rank_max=args.rank_max,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))

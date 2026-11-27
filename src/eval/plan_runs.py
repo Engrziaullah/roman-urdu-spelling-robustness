@@ -41,9 +41,16 @@ def plan_run_counts(
     config_path: str | Path,
     *,
     requested_conditions: Sequence[str] | None = None,
+    rank_max: int | None = None,
 ) -> list[dict[str, Any]]:
     """Return full-pass, noise, and estimated days for every configured model."""
     items = read_items(items_path)
+    if rank_max is not None:
+        if isinstance(rank_max, bool) or rank_max <= 0:
+            raise ValueError("rank_max must be a positive integer.")
+        items = [item for item in items if item["sample_rank"] <= rank_max]
+        if not items:
+            raise ValueError("No items remain after applying --rank-max.")
     item_ids = {item["item_id"] for item in items}
     observed_conditions = {item["condition"] for item in items}
     conditions = set(requested_conditions or observed_conditions)
@@ -73,6 +80,11 @@ def plan_run_counts(
         )
     else:
         raise ValueError(f"Field 'noise_subset' must be a mapping in {config_path}.")
+    configured_noise_ids = noise.get("item_ids", []) if isinstance(noise, dict) else []
+    if isinstance(configured_noise_ids, list) and configured_noise_ids:
+        noise_items = len(set(configured_noise_ids) & item_ids)
+    else:
+        noise_items = min(noise_items, len(item_ids))
     noise_extra = noise_items * len(conditions) * max(0, noise_repeats - 1)
 
     plans: list[dict[str, Any]] = []
@@ -111,6 +123,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--conditions",
         help="Comma-separated conditions; defaults to those present in the items file.",
     )
+    parser.add_argument(
+        "--rank-max",
+        type=int,
+        help="Plan only items with sample_rank <= N.",
+    )
     args = parser.parse_args(argv)
     conditions = (
         tuple(part.strip() for part in args.conditions.split(",") if part.strip())
@@ -123,6 +140,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.models,
             args.config,
             requested_conditions=conditions,
+            rank_max=args.rank_max,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))

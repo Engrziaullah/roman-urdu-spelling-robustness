@@ -41,6 +41,17 @@ or write results:
 python -m src.eval.run --model-slug model-1 --items data/processed/items_nu.jsonl --conditions NU --max-items 20 --dry-run
 ```
 
+`--max-items N` takes the first N distinct items in input-file order. For the
+nested sample subset, use `--rank-max N` instead: it selects every item whose
+`sample_rank <= N`, in ascending sample-rank order, without changing the default
+run. The same filter is available to the planner and result checker:
+
+```powershell
+python -m src.eval.run --model-slug model-1 --items data/processed/items_nu.jsonl --conditions NU --rank-max 200 --dry-run
+python -m src.eval.plan_runs --items data/processed/items_v1.jsonl --conditions NU,RU-P,RU-R,RU-X,RT --rank-max 200
+python -m src.eval.check_results --results-dir results/raw --items data/processed/items_v1.jsonl --conditions NU,RU-P,RU-R,RU-X,RT --rank-max 200
+```
+
 `configs/models.yaml` must contain the selected slug. `TODO` values remain for the
 human owner to fill from official provider pages before a real run.
 
